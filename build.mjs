@@ -69,7 +69,7 @@ ${body}
     </div>
     <div>
       <h4>Contact</h4>
-      <p>${esc(D.site.contact.name)}<br><a href="mailto:${D.site.contact.email}">${D.site.contact.email}</a></p>
+      <p>${esc(D.site.contact.name)}<br><a href="contact.html">Send us a message</a></p>
       <p class="small">Maintained by the lab team. No cookies, no tracking.</p>
     </div>
   </div>
@@ -287,7 +287,7 @@ ${head('People', 'The team', 'Experimentalists, geochemists and planetary scient
 </section>
 <section class="alt">
   <div class="wrap grid g2">
-    <div class="prose"><h2>Join the lab</h2><p>For questions about student projects, positions or collaborations, please contact ${esc(D.site.contact.name)}.</p><p><a class="btn" href="contact.html">Contact</a></p></div>
+    <div class="prose"><h2>Join the lab</h2><p>For questions about student projects, positions or collaborations, please write to us through the contact form.</p><p><a class="btn" href="contact.html">Contact form</a></p></div>
   </div>
 </section>`,
 });
@@ -364,25 +364,44 @@ ${head('Virtual tour', 'Step inside the laboratory', 'A 3D walk-through of the l
 });
 
 /* ---------- Contact ---------- */
+const F = D.site.contact.form;
 pages.push({
   file: 'contact.html', title: 'Contact',
-  desc: `Contact details of the ${D.site.name} at the Faculty of Aerospace Engineering, TU Delft.`,
+  desc: `Contact form and address of the ${D.site.name} at the Faculty of Aerospace Engineering, TU Delft.`,
+  scripts: ['js/contact.js'],
   body: `
 ${head('Contact', 'Get in touch', 'Questions about the laboratory, collaborations or student projects are welcome.')}
 <section>
-  <div class="wrap grid g2">
+  <div class="wrap grid contact">
     <div class="card">
-      <h3>${esc(D.site.contact.name)}</h3>
-      <p class="role">${esc(D.site.contact.role)}</p>
-      <p><a href="mailto:${D.site.contact.email}">${D.site.contact.email}</a></p>
-      <p>${D.site.contact.address.map(esc).join('<br>')}</p>
-      <p><a href="https://www.openstreetmap.org/search?query=Kluyverweg%201%2C%20Delft" rel="noopener">Show on a map</a></p>
+      <h3>Send us a message</h3>
+      <form class="form" id="contact-form" action="${F.endpoint}" method="post" novalidate data-email="${F.email}">
+        <p class="muted">Your message goes to the lab team, and one of us will answer by email.</p>
+        <div class="field"><label for="cf-name">Your name</label><input id="cf-name" name="name" type="text" autocomplete="name" maxlength="100" required></div>
+        <div class="field"><label for="cf-email">Your email address</label><input id="cf-email" name="email" type="email" autocomplete="email" maxlength="200" required></div>
+        <div class="field"><label for="cf-topic">Topic</label><select id="cf-topic" name="topic">${F.topics.map((t) => `<option>${esc(t)}</option>`).join('')}</select></div>
+        <div class="field"><label for="cf-message">Message</label><textarea id="cf-message" name="message" rows="7" maxlength="5000" required></textarea></div>
+        <div class="hp" aria-hidden="true"><label for="cf-extra">Leave this field empty</label><input id="cf-extra" name="leave-this-empty" type="text" tabindex="-1" autocomplete="off"></div>
+        <button class="btn primary" type="submit">Send message</button>
+        <p class="form-status" role="status" aria-live="polite"></p>
+        <p class="small muted">Your message is sent by email to the lab team. It is not stored on this website.</p>
+      </form>
+      <div class="form-done" id="contact-done" tabindex="-1" hidden><h3>Message sent</h3><p>Thank you. Your message is on its way to the lab team, and one of us will answer by email.</p></div>
+      <p class="nojs">The form needs JavaScript. You can also write to <a href="mailto:${F.email}">${F.email}</a>.</p>
     </div>
-    <div class="card">
-      <h3>Acknowledgements</h3>
-      <p>The experimental facilities and research have been supported by:</p>
-      <ul class="plain">${D.funders.map((f) => `<li>${esc(f)}</li>`).join('')}</ul>
-      <p>${todo('funder list and required acknowledgement wording to confirm')}</p>
+    <div class="stack">
+      <div class="card">
+        <h3>${esc(D.site.contact.name)}</h3>
+        <p class="role">${esc(D.site.contact.role)}</p>
+        <p>${D.site.contact.address.map(esc).join('<br>')}</p>
+        <p><a href="https://www.openstreetmap.org/search?query=Kluyverweg%201%2C%20Delft" rel="noopener">Show on a map</a></p>
+      </div>
+      <div class="card">
+        <h3>Acknowledgements</h3>
+        <p>The experimental facilities and research have been supported by:</p>
+        <ul class="plain">${D.funders.map((f) => `<li>${esc(f)}</li>`).join('')}</ul>
+        <p>${todo('funder list and required acknowledgement wording to confirm')}</p>
+      </div>
     </div>
   </div>
 </section>`,

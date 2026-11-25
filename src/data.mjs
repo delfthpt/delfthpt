@@ -12,7 +12,6 @@ export const site = {
   contact: {
     name: 'Dr. Edgar S. Steenstra',
     role: 'Assistant Professor, principal investigator',
-    email: 'e.s.steenstra@tudelft.nl',
     address: [
       'TU Delft, Faculty of Aerospace Engineering',
       'Department of Space Engineering',
@@ -20,6 +19,13 @@ export const site = {
       'Building 62, room N2.32',
       'Kluyverweg 1, 2629 HS Delft, The Netherlands',
     ],
+    // The contact form. Messages go by email to the lab team (see README.md, "The contact form and info@delfthpt.com").
+    // The topics must be the same as the TOPICS list in worker/mail.js.
+    form: {
+      endpoint: 'https://forms.delfthpt.com/contact',
+      email: 'info@delfthpt.com',
+      topics: ['General question', 'Collaboration', 'Student project or position', 'Media', 'Other'],
+    },
   },
 };
 

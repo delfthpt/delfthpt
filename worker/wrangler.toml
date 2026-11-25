@@ -1,0 +1,16 @@
+# Settings of the mail Worker (see README.md, "The contact form and info@delfthpt.com").
+# The Worker is managed in the Cloudflare dashboard. This file documents its set-up and lets
+# someone with access deploy it from a terminal as well:  npx wrangler deploy
+name = "delfthpt-mail"
+main = "mail.js"
+compatibility_date = "2026-11-01"
+workers_dev = false
+keep_vars = true   # RECIPIENTS is set in the dashboard and must not be overwritten from here
+
+routes = [{ pattern = "forms.delfthpt.com", custom_domain = true }]
+
+[[send_email]]
+name = "MAIL"
+
+[observability]
+enabled = true

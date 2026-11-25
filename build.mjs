@@ -49,7 +49,7 @@ function layout({ file, title, desc, body, scripts = [], cls = '' }) {
 <div class="review-bar">Review mode: yellow marks show what the lab still needs to confirm or fill in. <a href="?review=0">Turn off</a></div>
 <header class="site-header">
   <div class="wrap">
-    <a class="brand" href="index.html">${logo}<span>Delft HPT Lab<small>Planetary materials laboratory</small></span></a>
+    <a class="brand" href="index.html">${logo}<span>${esc(D.site.name)}<small>Planetary materials laboratory</small></span></a>
     <button class="nav-toggle" aria-expanded="false" aria-controls="nav">Menu</button>
     <nav class="nav" id="nav" aria-label="Main">${navHtml}</nav>
   </div>
@@ -177,7 +177,7 @@ pages.push({
 /* ---------- Research ---------- */
 pages.push({
   file: 'research.html', title: 'Research',
-  desc: 'Research themes and funded projects of the Delft HPT Lab: Venus, planetary differentiation, magma rheology, cloud chemistry and green steelmaking.',
+  desc: `Research themes and funded projects of the ${D.site.name}: Venus, planetary differentiation, magma rheology, cloud chemistry and green steelmaking.`,
   body: `
 ${head('Research', 'How planets work, tested in the laboratory', esc(D.intro[1]))}
 <section>
@@ -222,7 +222,7 @@ ${head('Research', 'How planets work, tested in the laboratory', esc(D.intro[1])
 /* ---------- Equipment ---------- */
 pages.push({
   file: 'equipment.html', title: 'Equipment and experiments',
-  desc: 'The instruments of the Delft HPT Lab and what they simulate: a piston cylinder press, a high-temperature rheometer, the Venus Surface Simulator and a gas-mixing furnace.',
+  desc: `The instruments of the ${D.site.name} and what they simulate: a piston cylinder press, a high-temperature rheometer, the Venus Surface Simulator and a gas-mixing furnace.`,
   scripts: ['js/viz.js'],
   body: `
 ${head('Equipment and experiments', 'Four instruments, a solar system of conditions', 'Each instrument recreates one part of a planet: the pressure of its interior, the flow of its lavas, the heat and weight of its atmosphere, or the chemistry of its gases. Use the controls under each instrument to see which world an experiment corresponds to.')}
@@ -274,7 +274,7 @@ const personCard = (p, cls = '') => `<div class="card person ${cls} reveal">
     </div>`;
 pages.push({
   file: 'people.html', title: 'People',
-  desc: 'The team of the Delft HPT Lab, led by Dr. Edgar Steenstra.',
+  desc: `The team of the ${D.site.name}, led by Dr. Edgar Steenstra.`,
   body: `
 ${head('People', 'The team', 'Experimentalists, geochemists and planetary scientists working at the Faculty of Aerospace Engineering of TU Delft.')}
 <section>
@@ -296,7 +296,7 @@ ${head('People', 'The team', 'Experimentalists, geochemists and planetary scient
 const pubItem = (p) => `<li><span class="yr">${p.y}</span>${esc(p.a)}. <i>${esc(p.t)}</i>. ${esc(p.j)}.${p.doi ? ` <a href="https://doi.org/${p.doi}" rel="noopener">doi:${esc(p.doi)}</a>` : ''}</li>`;
 pages.push({
   file: 'publications.html', title: 'Publications',
-  desc: 'Publications of the Delft HPT Lab and earlier work by its members.',
+  desc: `Publications of the ${D.site.name} and earlier work by its members.`,
   body: `
 ${head('Publications', 'Publications', 'Papers from the laboratory, followed by selected earlier work of lab members.')}
 <section>
@@ -308,11 +308,18 @@ ${head('Publications', 'Publications', 'Papers from the laboratory, followed by 
 <section class="alt">
   <div class="wrap">
     <h2>Venus clouds and ionic liquids</h2>
-    <p class="muted">Work by Iaroslav Iakubivskyi and co-authors. ${todo('list to confirm')}</p>
+    <p class="muted">Work by Iaroslav Iakubivskyi and co-authors. His complete list is on <a href="${D.scholar.iakubivskyi}" rel="noopener">Google Scholar</a>. ${todo('list to confirm')}</p>
     <ul class="pubs">${D.cloudPubs.map(pubItem).join('')}</ul>
   </div>
 </section>
 <section>
+  <div class="wrap">
+    <h2>Space missions, instruments and field analogues</h2>
+    <p class="muted">Earlier work by Iaroslav Iakubivskyi and co-authors, from the Comet Interceptor mission to electric solar wind sails and nanospacecraft. ${todo('list to confirm')}</p>
+    <ul class="pubs">${D.missionPubs.map(pubItem).join('')}</ul>
+  </div>
+</section>
+<section class="alt">
   <div class="wrap">
     <h2>Earlier work by Edgar Steenstra</h2>
     <p class="muted">Compiled from public university profiles. A complete and current list is on <a href="https://scholar.google.nl/citations?user=RnRn5XYAAAAJ&amp;hl=nl" rel="noopener">Google Scholar</a>. ${todo('list and author format to confirm')}</p>
@@ -324,7 +331,7 @@ ${head('Publications', 'Publications', 'Papers from the laboratory, followed by 
 /* ---------- News ---------- */
 pages.push({
   file: 'news.html', title: 'News',
-  desc: 'News from the Delft HPT Lab.',
+  desc: `News from the ${D.site.name}.`,
   body: `
 ${head('News', 'News', 'Announcements and coverage of the laboratory.')}
 <section>
@@ -337,7 +344,7 @@ ${head('News', 'News', 'Announcements and coverage of the laboratory.')}
 /* ---------- Virtual tour ---------- */
 pages.push({
   file: 'tour.html', title: 'Virtual tour',
-  desc: 'A virtual tour of the Delft HPT Lab.',
+  desc: `A virtual tour of the ${D.site.name}.`,
   body: `
 ${head('Virtual tour', 'Step inside the laboratory', 'A 3D walk-through of the laboratory is in preparation. Until then, here is a look at the instruments.')}
 <section>
@@ -359,7 +366,7 @@ ${head('Virtual tour', 'Step inside the laboratory', 'A 3D walk-through of the l
 /* ---------- Contact ---------- */
 pages.push({
   file: 'contact.html', title: 'Contact',
-  desc: 'Contact details of the Delft HPT Lab at the Faculty of Aerospace Engineering, TU Delft.',
+  desc: `Contact details of the ${D.site.name} at the Faculty of Aerospace Engineering, TU Delft.`,
   body: `
 ${head('Contact', 'Get in touch', 'Questions about the laboratory, collaborations or student projects are welcome.')}
 <section>

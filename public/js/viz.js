@@ -1,4 +1,4 @@
-/* Delft HPT Lab: interactive illustrations on the equipment page.
+/* Delft High PT Lab: interactive illustrations on the equipment page.
    Plain canvas, no dependencies. Each illustration is registered in VIZ and mounted on
    <figure class="viz" data-viz="name">. Numbers are approximations for outreach, see the notes on the page. */
 (() => {

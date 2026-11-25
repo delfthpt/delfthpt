@@ -1,4 +1,4 @@
-/* Delft HPT Lab: navigation, home page animation, counters and scroll reveals. No dependencies. */
+/* Delft High PT Lab: navigation, home page animation, counters and scroll reveals. No dependencies. */
 (() => {
   'use strict';
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;

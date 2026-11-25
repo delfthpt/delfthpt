@@ -1,4 +1,4 @@
-# Delft HPT Lab website
+# Delft High PT Lab website
 
 The website of the TU Delft High-Pressure/Temperature Laboratory for Planetary Materials, published at [delfthpt.com](https://delfthpt.com).
 
@@ -18,7 +18,8 @@ Typical edits:
 | --- | --- |
 | Add or change a team member | the `people` list |
 | Add a news item | the `news` list (newest first) |
-| Add a paper | `groupPubs` (newest first) |
+| Add a paper of the group | `groupPubs` (newest first) |
+| Add earlier work of a lab member | `cloudPubs`, `missionPubs` or `piPubs` (newest first) |
 | Add or describe a project | the `projects` list |
 | Change instrument text or specifications | the `instruments` list |
 | Change the rotating questions on the home page | the `questions` list |

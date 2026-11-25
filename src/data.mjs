@@ -5,7 +5,7 @@
 // show when the site is opened with ?review=1 at the end of the address.
 
 export const site = {
-  name: 'Delft HPT Lab',
+  name: 'Delft High PT Lab',
   full: 'TU Delft High-Pressure/Temperature Laboratory for Planetary Materials',
   url: 'https://delfthpt.com',
   tagline: 'We recreate the pressures, temperatures and atmospheres of other worlds to understand how planets form and evolve.',
@@ -15,7 +15,8 @@ export const site = {
     email: 'e.s.steenstra@tudelft.nl',
     address: [
       'TU Delft, Faculty of Aerospace Engineering',
-      'Department of Space Engineering, Section Planetary Exploration',
+      'Department of Space Engineering',
+      'Section Planetary Exploration',
       'Building 62, room N2.32',
       'Kluyverweg 1, 2629 HS Delft, The Netherlands',
     ],
@@ -114,7 +115,8 @@ export const people = [
     tags: ['High-pressure, high-temperature experiments', 'Geochemistry', 'EPMA', 'LA-ICP-MS'],
     links: [['Google Scholar', 'https://scholar.google.nl/citations?user=RnRn5XYAAAAJ&hl=nl'], ['TU Delft profile', 'https://tudelft.nl/en/staff/e.s.steenstra']] },
   { name: 'Dr. Iaroslav Iakubivskyi', role: '', init: 'II', photo: null, bio: '',
-    tags: ['Venus clouds', 'Ionic liquids', 'Sulfuric acid chemistry'] },
+    tags: ['Venus clouds', 'Ionic liquids', 'Sulfuric acid chemistry'],
+    links: [['Google Scholar', 'https://scholar.google.com/citations?user=wU0AEWMAAAAJ']] },
   { name: 'Guus Aerts, MSc', role: 'PhD candidate', init: 'GA', photo: null, bio: '', tags: [] },
   { name: 'Jaap Jorritsma, MSc', role: 'PhD candidate', init: 'JJ', photo: null,
     bio: 'Jaap is a 3rd year PhD researcher who is experimentally investigating the sulphur fluxes between the crust and atmosphere of Venus. In his MSc thesis at the VU, he studied the feasibility of ferrovolcanism on 16 Psyche.',
@@ -174,11 +176,31 @@ export const groupPubs = [
   { y: 2026, a: 'G. Farkas, A. Geldolf, L. Lorenci, R. Methner, M. Pavel, L. Potharaju, S. Topper, J. Van Gestel, T. Wijgerse, J. Xin, G. Aerts, J. Jorritsma, E. Schrama, E. Steenstra', t: 'Exploring Venus with the Long-Duration Lander Mission Concept ‘KYTHERA’', j: 'Adv. Space Res., 77, 12822–12835' },
 ];
 
+// Work by Iaroslav Iakubivskyi and co-authors, checked against the publishers' records (Crossref).
+// The publications page links to his complete list on Google Scholar.
+export const scholar = { iakubivskyi: 'https://scholar.google.com/citations?user=wU0AEWMAAAAJ' };
+
 export const cloudPubs = [
   { y: 2026, a: 'S. Seager, W. Bains, I. Iakubivskyi, R. Agrawal, J. Jenkins, P. Shinde, J.J. Petkowski', t: 'Ionic liquid biospheres', j: 'Life 16, 408', doi: '10.3390/life16030408' },
+  { y: 2026, a: 'M.R.A. Moreno, C.E. Carr, D. Baumgardner, K.M. Choi-Slattery, S. Nellutla, I. Iakubivskyi, K.T. Jansen, J.J. Petkowski, S. Seager', t: 'Development of a data retrieval algorithm for Venus nephelometry in preparation for the Rocket Lab Mission to Venus', j: 'Icarus 459, 117189', doi: '10.1016/j.icarus.2026.117189' },
+  { y: 2025, a: 'I. Iakubivskyi, S. Seager, L.S. Morrissey, A.P. Georgiou, M.D. Seager, R. Agrawal, J.J. Pętkowski', t: 'Miscibility of hydrogen sulfate planetary ionic liquids with water', j: 'Planet. Sci. J. 6, 304', doi: '10.3847/PSJ/ae260d' },
   { y: 2025, a: 'R. Agrawal, S. Seager, I. Iakubivskyi, W.P. Buchanan, A. Glidden, M.D. Seager, W. Bains, J. Huang, J.J. Petkowski', t: 'Warm, water-depleted rocky exoplanets with surface ionic liquids: a proposed class for planetary habitability', j: 'Proc. Natl. Acad. Sci. USA 122, e2425520122', doi: '10.1073/pnas.2425520122' },
   { y: 2024, a: 'I. Iakubivskyi, S. Seager, C.E. Carr, J.J. Petkowski, R. Agrawal, M.R.A. Moreno, S. Nellutla', t: 'Venus cloud catcher as a proof of concept aerosol collection instrument', j: 'Scientific Reports 14, 30045', doi: '10.1038/s41598-024-80847-8' },
+  { y: 2024, a: 'R. Agrawal, S. Seager, J.J. Petkowski, C.E. Carr, W.P. Buchanan, K. Bywaters, M. de Jong, D.H. Grinspoon, I. Iakubivskyi, I.R. King, S.J. Saikia, K. Zacny', t: 'Venus cloud sample return concept for astrobiology', j: 'Adv. Space Res. 74, 490–504', doi: '10.1016/j.asr.2024.03.065' },
   { y: 2022, a: 'S. Seager, J.J. Petkowski, C.E. Carr, S.J. Saikia, R. Agrawal, W.P. Buchanan, D.H. Grinspoon, M.U. Weber, P. Klupar, S.P. Worden, I. Iakubivskyi, M. Pajusalu, L. Kaasik', t: 'Venus Life Finder habitability mission: motivation, science objectives, and instrumentation', j: 'Aerospace 9, 733', doi: '10.3390/aerospace9110733' },
+];
+
+// Journal papers only. Long author lists are shortened to the first authors and the number of authors.
+export const missionPubs = [
+  { y: 2026, a: 'M.F. Palos, A. Ivanova, G. Mengali, et al. (15 authors, including I. Iakubivskyi)', t: 'Curved space telescope: E-sail concept to the solar gravitational lens focal region', j: 'Adv. Space Res. 78, 9702–9716', doi: '10.1016/j.asr.2026.05.095' },
+  { y: 2024, a: 'G.H. Jones, C. Snodgrass, C. Tubiana, et al. (234 authors, including I. Iakubivskyi)', t: 'The Comet Interceptor mission', j: 'Space Sci. Rev. 220, 9', doi: '10.1007/s11214-023-01035-0' },
+  { y: 2024, a: 'A. Slavinskis, M.F. Palos, J. Dalbins, et al. (35 authors, including I. Iakubivskyi)', t: 'Electric Sail Test Cube–Lunar Nanospacecraft, ESTCube-LuNa: solar wind propulsion demonstration mission concept', j: 'Aerospace 11, 230', doi: '10.3390/aerospace11030230' },
+  { y: 2023, a: 'M.F. Palos, P. Janhunen, P. Toivanen, M. Tajmar, I. Iakubivskyi, et al. (22 authors)', t: 'Electric Sail Mission Expeditor, ESME: software architecture and initial ESTCube lunar cubesat E-sail experiment design', j: 'Aerospace 10, 694', doi: '10.3390/aerospace10080694' },
+  { y: 2023, a: 'J. Dalbins, K. Allaje, H. Ehrpais, I. Iakubivskyi, et al. (16 authors)', t: 'Interplanetary student nanospacecraft: development of the LEO demonstrator ESTCube-2', j: 'Aerospace 10, 503', doi: '10.3390/aerospace10060503' },
+  { y: 2022, a: 'N. Kopacz, J. Csuka, M. Baqué, I. Iakubivskyi, et al. (17 authors)', t: 'A study in blue: secondary copper-rich minerals and their associated bacterial diversity in Icelandic lava tubes', j: 'Earth and Space Science 9, e2022EA002234', doi: '10.1029/2022EA002234' },
+  { y: 2022, a: 'M. Pajusalu, I. Iakubivskyi, G.J. Schwarzkopf, O. Knuuttila, T. Väisänen, M. Bührer, M.F. Palos, H. Teras, G. Le Bonhomme, J. Praks, A. Slavinskis', t: 'SISPO: space imaging simulator for proximity operations', j: 'PLoS ONE 17, e0263882', doi: '10.1371/journal.pone.0263882' },
+  { y: 2021, a: 'I. Iakubivskyi, L. Mačiulis, P. Janhunen, J. Dalbins, M. Noorma, A. Slavinskis', t: 'Aspects of nanospacecraft design for main-belt sailing voyage', j: 'Adv. Space Res. 67, 2957–2980', doi: '10.1016/j.asr.2020.07.023' },
+  { y: 2020, a: 'I. Iakubivskyi, P. Janhunen, J. Praks, et al. (44 authors)', t: 'Coulomb drag propulsion experiments of ESTCube-2 and FORESAIL-1', j: 'Acta Astronautica 177, 771–783', doi: '10.1016/j.actaastro.2019.11.030' },
 ];
 
 // Earlier work by the PI, compiled from his public university profiles.

@@ -3,7 +3,7 @@
 # someone with access deploy it from a terminal as well:  npx wrangler deploy
 name = "delfthpt-mail"
 main = "mail.js"
-compatibility_date = "2026-11-01"
+compatibility_date = "2026-11-25"
 workers_dev = false
 keep_vars = true   # RECIPIENTS is set in the dashboard and must not be overwritten from here
 
@@ -14,3 +14,10 @@ name = "MAIL"
 
 [observability]
 enabled = true
+
+# Cloudflare can add a log line for every request, and that line holds the visitor's IP address and
+# location. It is switched off, so that nothing about visitors is kept. The Worker's own lines, such
+# as a failed send, are still logged.
+[observability.logs]
+enabled = true
+invocation_logs = false

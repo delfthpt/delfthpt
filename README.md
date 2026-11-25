@@ -85,6 +85,7 @@ To take someone off the list, remove the address from `RECIPIENTS`.
 | Worker → Settings → Variables | `RECIPIENTS` (required); `FROM_ADDRESS` and `ALLOWED_ORIGINS` are optional and described at the top of `worker/mail.js` |
 | Worker → Settings → Bindings | Email Service, variable name `MAIL` |
 | Worker → Domains | custom domain `forms.delfthpt.com`; the `workers.dev` address is switched off |
+| Worker → Settings → Observability | Logs on, **Include Invocation logs** off. With it on, Cloudflare would keep the IP address and location of every visitor who sends the form. |
 
 Form messages are sent from `website@delfthpt.com`. No mailbox is behind that address on purpose, so that automatic replies do not reach the whole team.
 

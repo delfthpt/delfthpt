@@ -1,0 +1,4 @@
+# The built site is produced by `node build.mjs` and published by GitHub Actions.
+dist/
+node_modules/
+.DS_Store

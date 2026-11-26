@@ -331,7 +331,7 @@
       draw(ctx, w, h, t, dt) {
         if (api.live) tr.tick(dt);
         const b = B[key], L = lims(b);
-        const Ps = calm(P, L.coarse, api.auto && tr.moving, dt); // the pressure as it is written
+        const Ps = clamp(calm(P, L.coarse, api.auto && tr.moving, dt), L.min, L.max); // the pressure as it is written
         if (api.auto) sset.glide(P, Ps);
         const d = dAt(b, P), ds = dAt(b, Ps), compact = w < 560;
         starfield(ctx, w, h, 3, compact ? 40 : 90);

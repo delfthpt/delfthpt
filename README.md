@@ -27,6 +27,7 @@ Typical edits:
 | Change the shared facilities and in-house manufacturing | `facilities` |
 | Change the text about the Venus clouds | `clouds` |
 | Change the photos on the Virtual tour page | the `gallery` list |
+| Change the texts, the views or the labels of the 3D model | `scan` (see "The virtual tour" below) |
 | Change the funder logos at the bottom of every page | `funderLogos`, and the acknowledgement text in `funders` and `euStatement` |
 | Change the rotating questions on the home page | the `questions` list |
 
@@ -59,7 +60,47 @@ When an item is settled, remove its `review: '...'` entry from `src/data.mjs`, o
 
 ## The virtual tour
 
-The page `tour.html` has a reserved slot for a 3D walk-through of the laboratory. In [`build.mjs`](build.mjs), look for the comment `Virtual tour slot` and replace the placeholder inside `<div class="tour-slot" id="tour-embed">` with the viewer embed once the scan is ready.
+The Virtual tour page shows a 3D scan of the laboratory. Visitors can turn it and zoom in, every instrument carries a numbered label, and a short tour flies from one instrument to the next. Below the model is the photo gallery (the `gallery` list).
+
+The model is drawn by [`public/js/tour.js`](public/js/tour.js) from the files in [`public/scan/`](public/scan), which hold about 450,000 coloured points in 1.5 MB. They arrive in three parts, and the model shows as soon as the first part is there (0.3 MB). A device that asks to save data, or that has little memory, loads two parts. Until the model is there, and in a browser that cannot draw it, the page shows a still picture of the scan (`public/img/lab-scan.jpg`). Without scripts it shows that picture with the texts of all views.
+
+The tour plays by itself and stops as soon as a visitor takes hold of the model; the Play button starts it again. For visitors who have asked their device for reduced motion, nothing moves until they press Play. The mouse wheel zooms only after a click on the model, so that the page still scrolls past it.
+
+An address can name a view: `delfthpt.com/tour#press` opens the page at the press. The Equipment page links to the model this way.
+
+### Changing the views and the labels
+
+The texts, the views and the places of the labels are in `scan` in [`src/data.mjs`](src/data.mjs). Each entry of `views` is one button under the model. A view with a `spot` also gets a numbered label in the model.
+
+| Setting | Meaning |
+| --- | --- |
+| `key` | the name of the view in the address (`/tour#press`) |
+| `name`, `text` | the label and the text under the model |
+| `img`, `alt`, `href`, `more` | a photo beside the text, and a link to the Equipment page |
+| `at` | the point the camera looks at, as three numbers in metres: towards the open side on the right, towards the wall with the door, and above the floor. The lines on the floor of the model are one metre apart |
+| `look` | the direction of the camera round the room in degrees, its height in degrees (90 is straight from above), and how many metres of the room the picture shows over its shorter side |
+| `cut` | how many metres in front of `at` the room is still drawn. What stands nearer to the camera is left away, so that the instrument is in clear view. Leave it out for a view of the whole room |
+| `spot` | the point where the label sits: the top of the instrument or a little above it |
+| `rest`, `turn` | how many seconds the tour stays in the view, and how many degrees per second the model turns meanwhile |
+
+To find these numbers:
+
+1. Open the Virtual tour page, and turn and zoom the model until it shows what the view should show. A double click on an instrument brings it to the middle.
+2. Open the console of the browser (F12, then **Console**) and enter `document.getElementById('tour-embed').scan.where()`.
+3. The answer gives `at`, `look` and `cut` of the present view, written the way they stand in `src/data.mjs`. It also gives `picked`, the point of the model that was double-clicked last. For a label, double-click the top of the instrument and use `picked` as its `spot`.
+
+### A new scan
+
+The scan was made with the Scaniverse app and exported as a point cloud (PLY). [`tools/scan/prepare.py`](tools/scan/prepare.py) turns such a file into the files in `public/scan/`. It needs Python 3 with numpy and scipy, and Pillow for the first step (`pip install numpy scipy pillow`). It is not part of the build of the site. Run it from the folder of the repository:
+
+1. `python3 tools/scan/prepare.py scan.ply --look top.png` straightens the scan, so that the floor is level and the walls run along the axes, and saves a view from above with a line every metre.
+2. Read from that picture which part of the scan is the room, and put it into `ROOM` at the top of the script. The script leaves out everything outside it, the ceiling, and loose points.
+3. `python3 tools/scan/prepare.py scan.ply` writes `public/scan/room-1.bin`, `room-2.bin` and `room-3.bin`, and prints the lines `step`, `origin`, `box` and `parts` for `scan` in `src/data.mjs`.
+4. Set `walls` in `scan` to places about 12 cm inside the wall on the left, the wall with the door and the wall with the windows. The model hides a wall when the camera stands behind it.
+5. Find the views and the places of the labels again in the new model, as described above.
+6. Renew the still picture: pause the tour in the Overview, take a screenshot of the model alone, and save it as `public/img/lab-scan.jpg`, about 1600 by 1000 pixels.
+
+Run on the scan of November 2026, the script reproduces the three published files exactly. How the points are packed is described at `pack` in the script, and `decode` in `tour.js` undoes it.
 
 ## The interactive illustrations
 
@@ -135,9 +176,12 @@ Page addresses have no `.html`: the People page is `delfthpt.com/people`. The fi
 | `preview.mjs` | a small server to look at the built site on your own computer |
 | `public/js/site.js` | navigation, home page animation, counters, the large view of photos |
 | `public/js/viz.js` | interactive illustrations |
+| `public/js/tour.js` | the 3D model on the Virtual tour page |
 | `public/js/contact.js` | sends the contact form |
 | `worker/` | the Cloudflare Worker behind the contact form and `info@delfthpt.com` (not part of the published site) |
 | `public/img/` | photos and the funder logos; `public/img/full/` holds larger versions for the large view |
+| `public/scan/` | the 3D scan of the laboratory, packed for the web |
+| `tools/scan/prepare.py` | prepares a new 3D scan (not part of the build) |
 | `.github/workflows/deploy.yml` | builds and publishes the site |
 
 ## Publishing and domain

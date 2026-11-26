@@ -339,6 +339,53 @@ export const gallery = [
   { img: 'ionic-liquid-mars-soil.jpg', alt: clouds.photo.alt, cap: 'Ionic liquid on Mars soil simulant' },
 ];
 
+// The 3D scan on the virtual tour page, drawn by public/js/tour.js. Distances are in metres in the frame of the
+// room: x runs from the wall on the left to the open side on the right, y from the windows to the wall with the
+// door, and z is the height above the floor.
+//   at    the point the camera looks at
+//   look  [direction in degrees round the room, height of the camera in degrees, metres shown across the picture]
+//   spot  where the label of an instrument sits (its top)
+//   cut   how many metres in front of `at`, measured over the floor towards the camera, the room is still drawn;
+//         what stands nearer to the camera is left away, so that the instrument is in clear view
+//   rest  seconds the tour stays in this view, and `turn` how many degrees per second the model turns meanwhile
+// The README tells how to find these numbers for a new view, and how the files in public/scan are made.
+export const scan = {
+  title: 'The laboratory in 3D',
+  poster: 'lab-scan.jpg',
+  alt: '3D scan of the laboratory seen from above at an angle, with the benches along the walls and the island bench in the middle',
+  step: 0.002, origin: [-3.86, -3.63, -0.06], box: [2.66, 3.63, 2.8],
+  walls: [-3.58, 3.38, -3.36],           // the wall on the left (x), the wall with the door (y), the windows (y)
+  parts: [
+    { file: 'room-1.bin', points: 90000, bytes: 329570 },
+    { file: 'room-2.bin', points: 155000, bytes: 528193 },
+    { file: 'room-3.bin', points: 207302, bytes: 678537 },
+  ],
+  // How to move the model: one sentence for visitors with a mouse, one for visitors with a touch screen.
+  hint: { mouse: 'Drag to turn the model. Click it and scroll to zoom, and double-click a spot to look at it closely.',
+    touch: 'Swipe sideways to turn the model, pinch to zoom, and double-tap a spot to look at it closely.' },
+  views: [
+    { key: 'overview', name: 'Overview', at: [-0.6, 0, 0.9], look: [72, 36, 8.4], rest: 16, turn: -4.5,
+      text: 'A scan of the laboratory, made of about 450,000 coloured points. The scanned part of the room measures about 6.5 by 7 metres, and each square of the grid is one metre. The ceiling is left out and the walls nearest to you are hidden, so that you can look inside.', review: 'places of the five labels to confirm' },
+    { key: 'plan', name: 'From above', at: [-0.6, 0, 0.9], look: [-90, 89.4, 9.2], rest: 7, turn: 0,
+      text: 'The room seen from straight above. The windows are at the bottom and the door is at the top. The island bench with the press stands in the middle, and the other instruments stand along the walls.' },
+    { key: 'press', name: instruments[0].short, at: [-0.45, -1.05, 1.15], look: [-78, 30, 5.0], cut: 1.25, spot: [-0.45, -1.1, 2.15], rest: 8, turn: 1.5,
+      img: instruments[0].img, alt: instruments[0].alt, href: '/equipment#press', more: 'More about the press',
+      text: 'The press stands at the end of the island bench in the middle of the room: a blue frame on steel columns, with the tall white cabinet for its gauges and controls beside it. It squeezes and heats a sample to the conditions inside a planet, up to 3.5 GPa and 1600 °C.' },
+    { key: 'rheometer', name: 'Rheometer', at: [0.2, -2.9, 1.2], look: [72, 30, 5.2], cut: 0.95, spot: [-0.15, -2.95, 2.0], rest: 8, turn: 1.5,
+      img: instruments[1].img, alt: instruments[1].alt, href: '/equipment#rheometer', more: 'More about the rheometer',
+      text: 'The rheometer stands by the windows in its safety enclosure of wire mesh, next to the desk with its control computer. It measures how easily a melt flows, at temperatures of up to 1730 °C and in a chosen gas.' },
+    { key: 'sta', name: instruments[2].short, at: [-2.95, 0.5, 0.9], look: [12, 32, 4.8], cut: 1.3, spot: [-2.95, 0.2, 1.6], rest: 8, turn: 1.5,
+      img: instruments[2].img, alt: instruments[2].alt, href: '/equipment#sta', more: 'More about the Venus Surface Simulator',
+      text: 'The Venus Surface Simulator stands on the table against the wall, with its control units and gas lines underneath. It weighs a sample and follows its heat flow in hot, dense gas, up to 1200 °C and 150 bar. The conditions at the surface of Venus lie well within that range.' },
+    { key: 'furnace', name: instruments[3].short, at: [-1.7, -2.6, 1.2], look: [58, 30, 5.0], cut: 1.25, spot: [-1.5, -2.8, 1.95], rest: 8, turn: 1.5,
+      img: instruments[3].img, alt: instruments[3].alt, href: '/equipment#furnace', more: 'More about the furnace',
+      text: 'The gas-mixing furnace is the dark tower by the windows, with its controller in front of it and the gas cabinet beside it. Samples are heated in a flowing mixture of gases such as CO₂, CO and SO₂, which sets how much oxygen is available to them.' },
+    { key: 'prep', name: 'Sample preparation', at: [2.05, 0, 1.0], look: [172, 30, 5.2], cut: 1.3, spot: [2.0, 0, 1.75], rest: 8, turn: 1.5,
+      img: facilities.photo.img, alt: facilities.photo.alt, href: '/equipment#facilities', more: 'More about sample preparation',
+      text: 'The bench where samples are prepared and stored: a drying oven, a stereo microscope and the desiccator cabinets that keep starting materials and finished experiments dry.' },
+  ],
+};
+
 export const funders = [
   'European Research Council (ERC Starting Grant VenusVolAtmos)',
   'Dutch Research Council NWO (M-Invest, XS and GO programmes)',

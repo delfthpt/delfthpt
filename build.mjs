@@ -287,6 +287,7 @@ ${head('Equipment and experiments', 'A solar system of conditions in one laborat
       <h2>${esc(i.name)}</h2>
       <div class="specs">${i.specs.map((s) => `<div class="spec"><b>${esc(s[0])}</b><span>${esc(s[1])}</span></div>`).join('')}</div>
       <p>${esc(i.text)}</p>
+      ${D.scan.views.some((v) => v.key === i.id) ? `<p class="small"><a href="/tour#${i.id}">Find it in the 3D model of the laboratory →</a></p>` : ''}
     </div>
     <div class="full reveal">
       ${viz(i.id, i.vizTitle, esc(i.vizFallback))}
@@ -317,6 +318,7 @@ ${head('Equipment and experiments', 'A solar system of conditions in one laborat
       <p>${esc(FAC.lead)}</p>
       <dl class="fac">${FAC.groups.map((g) => `<dt>${esc(g.t)}</dt><dd>${esc(g.d)}</dd>`).join('')}</dl>
       <p class="small">More about these facilities: ${FAC.links.map((l) => `<a href="${l[1]}" rel="noopener">${esc(l[0])}</a>`).join(' · ')}${mark(FAC)}</p>
+      <p class="small"><a href="/tour#prep">Find the preparation bench in the 3D model of the laboratory →</a></p>
     </div>
   </article>
 </div>`,
@@ -428,15 +430,40 @@ ${head('News', 'News', 'Announcements and coverage of the laboratory.')}
 });
 
 /* ---------- Virtual tour ---------- */
+// The 3D scan. Without scripts, or in a browser that cannot draw it, visitors see the picture of the scan and the
+// texts of all views below it. public/js/tour.js puts the model over the picture and shows one text at a time.
+const SC = D.scan;
+const scanData = {
+  step: SC.step, origin: SC.origin, box: SC.box, walls: SC.walls,
+  parts: SC.parts.map((p) => ({ url: asset(`scan/${p.file}`), points: p.points, bytes: p.bytes })),
+  views: SC.views.map((v) => ({ key: v.key, label: v.label || v.name, at: v.at, look: v.look, cut: v.cut || 0, spot: v.spot || null, rest: v.rest, turn: v.turn })),
+};
+const spotNo = (v) => SC.views.filter((x) => x.spot).indexOf(v) + 1;
+const [posterW, posterH] = imgSize(SC.poster);
+const scanInfo = (v) => `<div class="scan-info" data-key="${v.key}">
+      ${v.img ? zoom({ img: v.img, alt: v.alt, cap: v.name }) : ''}
+      <div>
+        ${v.spot ? `<h3><b>${spotNo(v)}</b>${esc(v.name)}</h3>` : ''}
+        <p>${esc(v.text)}${v.review ? ` ${todo(v.review)}` : ''}</p>
+        ${v.href ? `<p><a href="${v.href}">${esc(v.more)} →</a></p>` : `<p class="hint"><span class="for-mouse">${esc(SC.hint.mouse)}</span><span class="for-touch">${esc(SC.hint.touch)}</span></p>`}
+      </div>
+    </div>`;
 pages.push({
   file: 'tour.html', title: 'Virtual tour',
-  desc: `A virtual tour of the ${D.site.name}.`,
+  desc: `A 3D scan of the ${D.site.name}: turn the model of the laboratory and find its instruments.`,
+  scripts: ['js/tour.js'],
   body: `
-${head('Virtual tour', 'Step inside the laboratory', 'A 3D walk-through of the laboratory is in preparation. Until then, here is a look at the instruments.')}
+${head('Virtual tour', 'Step inside the laboratory', 'Turn a 3D scan of the laboratory, zoom in, and find the instruments. Press Play for a short tour.')}
 <section>
   <div class="wrap">
-    <!-- Virtual tour slot: replace the placeholder below with the 3D viewer embed once the scan is ready. -->
-    <div class="tour-slot" id="tour-embed"><div><h3>Virtual tour coming soon</h3><p>A 3D scan of the laboratory will appear here. ${todo('scan to add')}</p></div></div>
+    <figure class="scan" id="tour-embed" data-scan="${esc(JSON.stringify(scanData))}" data-gallery>
+      <div class="scan-title">${esc(SC.title)}</div>
+      <div class="scan-stage"><img class="scan-poster" src="/img/${SC.poster}" alt="${esc(SC.alt)}" width="${posterW}" height="${posterH}"></div>
+      <div class="bar"><div class="seg" role="group" aria-label="Views of the laboratory">${SC.views.map((v) => `<button type="button" data-key="${v.key}">${v.spot ? `<b>${spotNo(v)}</b>` : ''}${esc(v.name)}</button>`).join('')}</div></div>
+      <figcaption class="scan-text">
+    ${SC.views.map(scanInfo).join('\n    ')}
+      </figcaption>
+    </figure>
   </div>
 </section>
 <section class="alt">

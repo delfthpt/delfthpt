@@ -65,13 +65,15 @@ The page `tour.html` has a reserved slot for a 3D walk-through of the laboratory
 
 The illustrations on the equipment page are drawn by [`public/js/viz.js`](public/js/viz.js). Each one uses a simple, documented model, and the numbers are meant to show the scale of an effect rather than to be used as data:
 
-- **Piston cylinder press**: pressure against depth for each body, from simple interior models.
-- **Rheometer**: speed of a laminar sheet flow 1 m thick on a 1° slope, for the chosen viscosity and gravity.
-- **Venus Surface Simulator**: temperature and pressure of the atmosphere of Venus after the Venus International Reference Atmosphere.
-- **Gas-mixing furnace**: oxygen fugacity of ideal CO₂–CO mixtures at 1 bar, relative to the iron–wüstite and quartz–fayalite–magnetite buffers.
+- **Piston cylinder press**: pressure against depth for each body, from simple interior models. The narrow column shows the whole body from surface to centre, the wide column the part within reach of the press. The slider stops at 3.5 GPa, or at the pressure in the centre of a small body.
+- **Rheometer**: the time a sheet of melt 1 m thick needs to cover 100 m on a 1° slope, for the chosen viscosity and gravity. The flow is laminar, with an upper limit on the speed for thin melts, where a real flow turns turbulent. The inset shows the measurement itself: a spindle turning at one speed and the stress read from it.
+- **Venus Surface Simulator**: temperature and pressure of the atmosphere of Venus after the Venus International Reference Atmosphere. Pressures are given in bar and in GPa.
+- **Gas-mixing furnace**: oxygen fugacity of ideal CO₂–CO mixtures at 1 bar, relative to the iron–wüstite and quartz–fayalite–magnetite buffers. The pressure slider moves only the two buffer lines, after Frost (1991). The furnace itself always works at 1 bar.
 - **Venus clouds**: the cloud decks between about 48 and 70 km, and a schematic of how an ionic liquid forms.
 
-The values and planetary ranges are at the top of each section of that file, so they are easy to correct.
+Each illustration plays by itself as a short tour of scenes: it glides to a scene, rests there, and goes on to the next one. While it glides, the numbers next to the sliders change in coarse steps and the sentence under the picture already describes the scene it is heading for, so the text stays readable. The room for the longest sentence is reserved, so that nothing below the picture moves. The Pause button, or a click on the picture, freezes it. Using a control stops the tour and leaves the picture to the visitor, and Play starts the tour again. For visitors who have asked their device for reduced motion, nothing moves until they press Play.
+
+The values, the planetary ranges, the sentences and the scenes of each tour are at the top of each section of that file, so they are easy to correct.
 
 ## The contact form and info@delfthpt.com
 

@@ -269,7 +269,7 @@ pages.push({
   desc: `The instruments of the ${D.site.name} and what they simulate: a piston cylinder press, a high-temperature rheometer, the Venus Surface Simulator and a gas-mixing furnace.`,
   scripts: ['js/viz.js'],
   body: `
-${head('Equipment and experiments', 'A solar system of conditions in one laboratory', 'Each instrument recreates one part of a planet: the pressure of its interior, the flow of its lavas, the heat and weight of its atmosphere, or the chemistry of its gases. Use the controls under each instrument to see which world an experiment corresponds to.')}
+${head('Equipment and experiments', 'A solar system of conditions in one laboratory', 'Each instrument recreates one part of a planet: the pressure of its interior, the flow of its lavas, the heat and weight of its atmosphere, or the chemistry of its gases. Each illustration plays by itself. Use the controls under it to see which world an experiment corresponds to, and press Play to let it run again.')}
 <div class="wrap">
   <nav class="jump" aria-label="On this page">
     ${D.instruments.map((i) => `<a href="#${i.id}">${esc(i.short)}</a>`).join('')}<a href="#clouds">Venus clouds</a><a href="#facilities">Shared facilities</a>

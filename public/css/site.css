@@ -130,7 +130,11 @@ a.card:hover{border-color:var(--accent);text-decoration:none}
 .tour-slot{aspect-ratio:16/9;border:2px dashed var(--line);border-radius:var(--r);display:grid;place-items:center;text-align:center;color:var(--muted);background:repeating-linear-gradient(45deg,#0e131c,#0e131c 14px,#111723 14px,#111723 28px);padding:24px}
 
 footer{border-top:1px solid var(--line);padding:36px 0;color:var(--muted);font-size:.9rem}
-footer .grid{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+/* Three columns; on a tablet the last one keeps the width of its longest line and the middle one gives way; then two columns with the contact block below; then one. */
+footer .grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(min-width:760px) and (max-width:1159px){footer .grid{grid-template-columns:minmax(0,1fr) minmax(0,.6fr) max-content}}
+@media(max-width:759px){footer .grid{grid-template-columns:repeat(2,minmax(0,1fr))}footer .foot-last{grid-column:1/-1}}
+@media(max-width:479px){footer .grid{grid-template-columns:minmax(0,1fr)}}
 footer h4{color:var(--ink);margin:0 0 8px;font-size:.95rem}
 footer ul{list-style:none;padding:0;margin:0}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
@@ -328,12 +332,15 @@ html.lb-open{overflow:hidden}
 /* footer: funder logos, low and partly transparent */
 /* Each column ends with its last line of text, and the logos rest on the lowest line of the footer. */
 footer .grid>div>p:last-child,footer .foot-last>div>p:last-child{margin-bottom:0}
-footer .foot-last{display:flex;flex-direction:column;justify-content:space-between;gap:14px}
-.funders{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px 18px;list-style:none;margin:0 0 5px;padding:0;opacity:.5;transition:opacity .25s}
-.funders li{flex:none}
+footer .foot-last{display:flex;flex-direction:column;justify-content:space-between;gap:18px}
+/* The logos are white on a clear background and all of one height (--h). The gap between two funders is that height. */
+/* On a phone narrower than about 375 pixels the height gives way a little, so that the row stays on one line. */
+.funders{--h:clamp(20px,calc((100vw - 72px)/11.8),26px);display:flex;flex-wrap:wrap;align-items:center;gap:14px var(--h);list-style:none;margin:0 0 5px;padding:0;color:#fff;opacity:.6;transition:opacity .25s}
 .funders:hover,.funders:focus-within{opacity:1}
-.funders a,.funders li>span{display:block;color:inherit}
+.funders li{flex:none}
+.funders a,.funders li>span{display:flex;align-items:center;height:var(--h);color:inherit}
 .funders a:hover{text-decoration:none}
-.funders .plate img{border-radius:6px}
-.funders .word{display:block;font:600 1.05rem/1 var(--font);letter-spacing:.14em;color:var(--ink)}
-.funders .word small{display:block;font:400 .62rem/1.2 var(--font);letter-spacing:.02em;color:var(--muted);margin-top:5px}
+.funders img{display:block;height:var(--h);width:auto;max-width:none}
+.funders .lines{margin-left:8px;font:700 calc(var(--h)*.357)/1.2 Arial,Helvetica,sans-serif;white-space:nowrap}
+.funders .rule{width:1px;height:var(--h);margin:0 12px 0 14px;background:currentColor;opacity:.45}
+.funders .word{font:700 calc(var(--h)*.47)/1 var(--font);letter-spacing:.16em;margin-right:-.16em}

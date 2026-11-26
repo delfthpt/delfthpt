@@ -349,13 +349,19 @@ export const funders = [
 // The wording that the European Research Council asks for next to its logo (Horizon Europe grants).
 export const euStatement = 'Funded by the European Union. Views and opinions expressed are however those of the author(s) only and do not necessarily reflect those of the European Union or the European Research Council Executive Agency. Neither the European Union nor the granting authority can be held responsible for them.';
 
-// Small funder logos at the bottom of every page. The files are in public/img. `h` is the height on screen in pixels.
-// NWO asks for a height of at least 15 mm (57 pixels) and for its white version on dark backgrounds.
-// The ERC asks for its logo together with the EU emblem; that file is made for light backgrounds, so it sits on a light plate.
-// There is no logo file for the Dutch Research Agenda yet, so it is named in text. To add one: put the file in
-// public/img and replace `text: 'NWA'` by `img: 'file-name.png', w: <width>, h: <height>`.
+// Small funder logos at the bottom of every page: white on a clear background, all shown at one height, which is
+// `--h` of `.funders` in public/css/site.css (26 pixels). The files are in public/img; `w` and `h` are the size of
+// the file, which is four times the size on screen. They were made from the logos on the funders' own pages.
+// - NWO: the white version of its logo. NWO asks for a height of at least 15 mm (57 pixels); here it is smaller.
+// - ERC: it asks for its logo together with the EU emblem and the words "Funded by the European Union". It offers
+//   the pair only in colour for light backgrounds, so here the emblem is drawn in white lines (logo-eu.svg, drawn
+//   for a height of 26 pixels), the words are text in `lines`, and `pair` is the ERC's mark recoloured to white.
+// - NWA: the logo of the Dutch Research Agenda from NWO's page about the programme, recoloured to white.
+// To add a funder: put a white picture on a clear background in public/img and add a line with `name`, `img`, `w`,
+// `h` and `url`. A funder without a logo file can be named in letters: `{ name: 'Full name', text: 'ABC' }`.
 export const funderLogos = [
-  { name: 'Dutch Research Council (NWO)', img: 'logo-nwo.png', w: 35, h: 57, url: 'https://www.nwo.nl/en' },
-  { name: 'European Research Council. Funded by the European Union', img: 'logo-erc-eu.png', w: 137, h: 64, plate: true, url: 'https://erc.europa.eu' },
-  { name: 'Dutch Research Agenda (NWA)', text: 'NWA', sub: 'Dutch Research Agenda' },
+  { name: 'Dutch Research Council (NWO)', img: 'logo-nwo.png', w: 64, h: 104, url: 'https://www.nwo.nl/en' },
+  { name: 'Funded by the European Union: European Research Council (ERC)', img: 'logo-eu.svg', w: 39, h: 26, lines: ['Funded by', 'the European Union'],
+    pair: { name: 'European Research Council', img: 'logo-erc.png', w: 103, h: 104 }, url: 'https://erc.europa.eu' },
+  { name: 'Dutch Research Agenda (NWA)', img: 'logo-nwa.png', w: 286, h: 104, url: 'https://www.nwo.nl/en/researchprogrammes/dutch-research-agenda-nwa' },
 ];

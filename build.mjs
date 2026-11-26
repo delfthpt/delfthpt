@@ -45,12 +45,15 @@ const shots = (list = []) => (!list.length ? ''
 const logo = `<svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="16" fill="#1a2233" stroke="#34415c"/><path d="M17 17 L31 9 A16 16 0 0 1 31 25 Z" fill="#b5653a"/><path d="M17 17 L27.5 11 A12 12 0 0 1 27.5 23 Z" fill="#e0a13a"/><path d="M17 17 L22.2 14 A6 6 0 0 1 22.2 20 Z" fill="#ffe9a8"/><circle cx="17" cy="17" r="16" fill="none" stroke="#ff8a3d" stroke-opacity=".55"/></svg>`;
 
 // Funder logos at the bottom of every page (the list is in src/data.mjs).
+// A logo can have words beside it (`lines`) and a second logo after a thin line (`pair`).
+const funderImg = (f, alt) => `<img src="/img/${f.img}" alt="${esc(alt)}" width="${f.w}" height="${f.h}" loading="lazy">`;
 const funderLogos = `<ul class="funders" aria-label="Funders">${D.funderLogos.map((f) => {
   const inner = f.img
-    ? `<img src="/img/${f.img}" alt="${esc(f.name)}" width="${f.w}" height="${f.h}" loading="lazy">`
-    : `<span class="word">${esc(f.text)}${f.sub ? `<small>${esc(f.sub)}</small>` : ''}</span>`;
-  const cls = f.plate ? ' class="plate"' : '';
-  return `<li>${f.url ? `<a${cls} href="${f.url}" rel="noopener" title="${esc(f.name)}">${inner}</a>` : `<span${cls} title="${esc(f.name)}">${inner}</span>`}</li>`;
+    ? funderImg(f, f.lines ? '' : f.name)
+      + (f.lines ? `<span class="lines">${f.lines.map(esc).join('<br>')}</span>` : '')
+      + (f.pair ? `<i class="rule"></i>${funderImg(f.pair, f.pair.name)}` : '')
+    : `<span class="word" aria-hidden="true">${esc(f.text)}</span><span class="sr">${esc(f.name)}</span>`;
+  return `<li>${f.url ? `<a href="${f.url}" rel="noopener" title="${esc(f.name)}">${inner}</a>` : `<span title="${esc(f.name)}">${inner}</span>`}</li>`;
 }).join('')}</ul>`;
 
 function layout({ file, title, desc, body, scripts = [], cls = '' }) {

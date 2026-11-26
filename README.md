@@ -6,7 +6,7 @@ It is a plain static site with no dependencies. All text lives in one file, and 
 
 ## Changing the text
 
-Everything a visitor reads is in [`src/data.mjs`](src/data.mjs): the introduction, research themes, projects, people, instruments, publications, news and contact details.
+Everything a visitor reads is in [`src/data.mjs`](src/data.mjs): the introduction, research themes, projects, people, instruments, shared facilities, publications, news and contact details.
 
 1. Open `src/data.mjs` on GitHub and click the pencil icon.
 2. Edit the text between the quotation marks. Keep the quotation marks and commas as they are.
@@ -21,18 +21,35 @@ Typical edits:
 | Add a paper of the group | `groupPubs` (newest first) |
 | Add earlier work of a lab member | `cloudPubs`, `missionPubs` or `piPubs` (newest first) |
 | Change the topics of the contact form | `site.contact.form.topics`, and the same list `TOPICS` in `worker/mail.js` |
+| Change who can be chosen under "To" in the contact form | `site.contact.form.people` (see "Changing who receives the mail" below) |
 | Add or describe a project | the `projects` list |
 | Change instrument text or specifications | the `instruments` list |
+| Change the shared facilities and in-house manufacturing | `facilities` |
+| Change the text about the Venus clouds | `clouds` |
+| Change the photos on the Virtual tour page | the `gallery` list |
+| Change the funder logos at the bottom of every page | `funderLogos`, and the acknowledgement text in `funders` and `euStatement` |
 | Change the rotating questions on the home page | the `questions` list |
+
+A list of publications with more than five entries shows about five of them in a frame that scrolls, with a button that opens the whole list. This happens by itself.
 
 ## Adding photos
 
-1. Upload the image to [`public/img/`](public/img) (**Add file → Upload files**). Use lowercase file names without spaces, for example `edgar-steenstra.jpg`. Portraits look best square, at least 600 pixels wide.
+1. Upload the image to [`public/img/`](public/img) (**Add file → Upload files**). Use lowercase file names without spaces, for example `edgar-steenstra.jpg`. About 1400 pixels on the long side is enough.
 2. Refer to the file by its name in `src/data.mjs`:
-   - a portrait: set `photo: 'edgar-steenstra.jpg'` for that person in `people`;
-   - an instrument photo: set `img: 'file-name.jpg'` and write a short description in `alt` for that instrument in `instruments`.
+   - a portrait: set `photo: 'edgar-steenstra.jpg'` for that person in `people`. A square photo of at least 400 pixels is shown square. A wider photo, such as one taken in the lab, is shown across the whole column; describe it in `alt`;
+   - an instrument photo: set `img: 'file-name.jpg'`, write a short description in `alt` and a caption in `cap` for that instrument in `instruments`;
+   - more photos for an instrument: add them to its `extra` list, each with `img`, `alt`, a caption `cap` and a short label `short`;
+   - a photo for the Virtual tour page: add it to `gallery`.
+
+Every photo on the Equipment and Virtual tour pages opens large when it is clicked, with its caption. To show more detail there, put a larger version of the photo (up to about 2400 pixels) under the same file name in [`public/img/full/`](public/img/full). A portrait opens large only when it has such a larger version.
+
+Phone photos often hold the place where they were taken. Remove that information before uploading (on a phone: share the photo with the location switched off).
 
 Only use photos the lab owns or has written permission to publish. Manufacturer product photos are copyrighted and need permission from the manufacturer before they can be used here.
+
+## People
+
+Someone with a photo or a biography gets a wide card on the People page: the photo on the left with the fields of expertise (`tags`) and the links under it, the text on the right. Someone without both gets a small card under the others until the details arrive. `links` is a list of pairs, a label and an address, for example `['Google Scholar', 'https://scholar.google.com/...']`. With `contact: 'Name'`, the card gets a **Send a message** link that opens the contact form with that person chosen.
 
 ## Review mode
 
@@ -64,6 +81,7 @@ One small Cloudflare Worker does the work. It is called `delfthpt-mail`, its sou
 
 - **Mail to `info@delfthpt.com`**: Cloudflare Email Routing hands every message to the Worker, which forwards a copy to each lab member. Email Routing by itself can forward an address to one mailbox only.
 - **The contact form**: the contact page posts the form to `https://forms.delfthpt.com/contact`. The Worker checks the message and emails it to the same people, with the visitor's address as reply-to, so that Reply answers the visitor. Nothing is stored.
+- **A message for one person**: under **To**, a visitor can choose one lab member instead of the whole team. The message then goes to that person alone. If that mailbox cannot be reached, it goes to the rest of the team, marked for that person, and the visitor is told so.
 
 The mailboxes of the lab members are a setting in Cloudflare. They are not written anywhere in this repository, because the repository is public.
 
@@ -72,9 +90,10 @@ The mailboxes of the lab members are a setting in Cloudflare. They are not writt
 In the [Cloudflare dashboard](https://dash.cloudflare.com):
 
 1. **Email Service → Email Routing → Destination addresses → Add address.** Cloudflare sends the new person an email with a **Verify email address** button. Until they press it, they receive nothing.
-2. **Workers & Pages → delfthpt-mail → Settings → Variables and secrets**: edit `RECIPIENTS`, a list of addresses separated by commas, and deploy.
+2. **Workers & Pages → delfthpt-mail → Settings → Variables and secrets**: edit `RECIPIENTS` and deploy. It is a list of entries separated by commas, each one a name with the mailbox in angle brackets, for example `Ada Lovelace <ada@example.org>`.
+3. To let visitors write to the new person alone, add the same name to `site.contact.form.people` in `src/data.mjs`, and set `contact: 'that name'` for the person in `people`. The name must be spelled exactly as in `RECIPIENTS`.
 
-To take someone off the list, remove the address from `RECIPIENTS`.
+To take someone off the list, remove the entry from `RECIPIENTS` and the name from `site.contact.form.people`.
 
 ### How it is set up
 
@@ -100,20 +119,23 @@ The Worker is managed in the dashboard. After changing `worker/mail.js` here, op
 You need [Node.js](https://nodejs.org) 18 or newer. There is nothing to install.
 
 ```sh
-node build.mjs                      # writes the site to ./dist
-python3 -m http.server -d dist 8000 # then open http://localhost:8000
+node build.mjs      # writes the site to ./dist
+node preview.mjs    # shows it the way GitHub Pages does; then open http://localhost:8000
 ```
+
+Page addresses have no `.html`: the People page is `delfthpt.com/people`. The files are still written as `people.html`, GitHub Pages serves them under the short address, and an old address that ends in `.html` is shortened in the browser. Links between pages are written as `/people`, so the site has to be opened through `preview.mjs` (or any server that maps `/people` to `people.html`), not by opening the files from the folder.
 
 | Path | What it is |
 | --- | --- |
 | `src/data.mjs` | all text content |
 | `build.mjs` | page layouts and the generator |
 | `public/css/site.css` | styles |
-| `public/js/site.js` | navigation, home page animation, counters |
+| `preview.mjs` | a small server to look at the built site on your own computer |
+| `public/js/site.js` | navigation, home page animation, counters, the large view of photos |
 | `public/js/viz.js` | interactive illustrations |
 | `public/js/contact.js` | sends the contact form |
 | `worker/` | the Cloudflare Worker behind the contact form and `info@delfthpt.com` (not part of the published site) |
-| `public/img/` | photos |
+| `public/img/` | photos and the funder logos; `public/img/full/` holds larger versions for the large view |
 | `.github/workflows/deploy.yml` | builds and publishes the site |
 
 ## Publishing and domain

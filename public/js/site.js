@@ -1,4 +1,5 @@
-/* Delft High PT Lab: navigation, home page animation, counters and scroll reveals. No dependencies. */
+/* Delft High PT Lab: navigation, home page animation, counters, scroll reveals, photos that open large
+   and the frames around long publication lists. No dependencies. */
 (() => {
   'use strict';
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -15,9 +16,9 @@
 
   /* ---- keep review mode while moving between pages ---- */
   if (document.documentElement.classList.contains('review')) {
-    document.querySelectorAll('a[href$=".html"], a[href*=".html#"]').forEach((a) => {
+    document.querySelectorAll('a[href^="/"]').forEach((a) => {
       const href = a.getAttribute('href');
-      if (/^https?:/.test(href) || href.includes('review=')) return;
+      if (/^\/(img|css|js)\//.test(href) || href.includes('review=')) return; // pages only, not files
       const [path, hash] = href.split('#');
       a.setAttribute('href', `${path}?review=1${hash ? `#${hash}` : ''}`);
     });
@@ -62,6 +63,8 @@
   }
 
   /* ---- rotating questions with a typing effect ---- */
+  // Before a question is typed, the browser lays out the whole sentence once and the line breaks are read off.
+  // Each line then keeps its words, and the letters are only revealed one by one, so a written word never moves.
   const q = document.getElementById('q');
   if (q) {
     let list = [];
@@ -71,23 +74,184 @@
       if (reduce) {
         setInterval(() => { i = (i + 1) % list.length; q.textContent = list[i]; }, 7000);
       } else {
-        q.classList.add('typing');
+        const el = (tag, cls) => { const e = document.createElement(tag); e.className = cls; return e; };
+        const spoken = el('span', 'sr');          // the whole question, for screen readers
+        const stage = el('span', 'stage');        // the animated letters
+        stage.setAttribute('aria-hidden', 'true');
+        let lines = [], shown = 0;                // the lines of the current question, and how many letters show
+
+        // Where does the browser break this sentence at the present width?
+        const breakLines = (text) => {
+          const probe = q.cloneNode(false);
+          probe.removeAttribute('id');
+          probe.style.cssText = `position:absolute;visibility:hidden;left:0;top:0;min-height:0;margin:0;width:${q.clientWidth}px`;
+          const words = text.split(' ').map((w, k, all) => {
+            const s = document.createElement('span');
+            s.textContent = k < all.length - 1 ? `${w} ` : w;
+            probe.appendChild(s);
+            return s;
+          });
+          q.parentNode.appendChild(probe);
+          const out = [];
+          let top = null;
+          for (const s of words) {
+            if (s.offsetTop !== top) { out.push(''); top = s.offsetTop; }
+            out[out.length - 1] += s.textContent;
+          }
+          probe.remove();
+          return out;
+        };
+        const lay = (text) => {
+          lines = breakLines(text).map((t) => {
+            const ln = el('span', 'ln'), on = el('span', 'on'), off = el('span', 'off');
+            ln.append(on, off);
+            return { t, ln, on, off };
+          });
+          stage.textContent = '';
+          stage.append(...lines.map((l) => l.ln));
+        };
+        const show = (n) => {
+          shown = n;
+          let left = n, cur = -1;                 // `cur` is the line that holds the cursor
+          lines.forEach((l, k) => {
+            const take = Math.max(0, Math.min(l.t.length, left));
+            l.on.textContent = l.t.slice(0, take);
+            l.off.textContent = l.t.slice(take);
+            if (cur < 0 && (left < l.t.length || k === lines.length - 1)) cur = k;
+            left -= l.t.length;
+          });
+          lines.forEach((l, k) => l.on.classList.toggle('cur', k === cur));
+        };
+
+        // Room for the longest question, so that nothing around it moves when the question changes.
+        const reserve = () => {
+          const most = Math.max(...list.map((t) => breakLines(t).length));
+          const line = parseFloat(getComputedStyle(q).lineHeight);
+          if (most && line) q.style.minHeight = `${Math.ceil(most * line)}px`;
+        };
+
+        spoken.textContent = list[0];
+        q.textContent = '';
+        q.append(spoken, stage);
+        reserve();
+        lay(list[0]);
+        show(list[0].length);
+
         const type = (text, n, done) => {
-          q.textContent = text.slice(0, n);
+          show(n);
           if (n < text.length) setTimeout(() => type(text, n + 1, done), 28 + Math.random() * 30);
           else setTimeout(done, 3800);
         };
-        const erase = (done) => {
-          const text = q.textContent;
-          if (text.length === 0) { done(); return; }
-          q.textContent = text.slice(0, -2);
-          setTimeout(() => erase(done), 12);
+        const erase = (n, done) => {
+          show(n);
+          if (n <= 0) { done(); return; }
+          setTimeout(() => erase(Math.max(0, n - 2), done), 12);
         };
-        const next = () => erase(() => { i = (i + 1) % list.length; type(list[i], 1, next); });
+        const next = () => erase(shown, () => {
+          i = (i + 1) % list.length;
+          spoken.textContent = list[i];
+          lay(list[i]);
+          type(list[i], 1, next);
+        });
         setTimeout(next, 4200);
+
+        // a new window width means new line breaks
+        let wide = q.clientWidth, wait = 0;
+        window.addEventListener('resize', () => {
+          clearTimeout(wait);
+          wait = setTimeout(() => { if (q.clientWidth !== wide) { wide = q.clientWidth; reserve(); lay(list[i]); show(shown); } }, 150);
+        });
       }
     }
   }
+
+  /* ---- photos open large ---- */
+  // Every link with class "zoom" opens its photo in a large view with the caption. The arrow keys and the
+  // arrows on screen step through the photos of the same group (the nearest element with data-gallery).
+  const zooms = Array.from(document.querySelectorAll('a.zoom'));
+  if (zooms.length) {
+    let box = null, img, cap, count, prev, next, close, group = [], at = 0, opener = null;
+    const make = (tag, cls, label, text) => {
+      const e = document.createElement(tag);
+      if (cls) e.className = cls;
+      if (label) e.setAttribute('aria-label', label);
+      if (text) e.textContent = text;
+      if (tag === 'button') e.type = 'button';
+      return e;
+    };
+    const show = () => {
+      const a = group[at], thumb = a.querySelector('img');
+      img.src = a.getAttribute('href');
+      img.alt = thumb ? thumb.alt : '';
+      cap.textContent = a.dataset.cap || '';
+      prev.hidden = next.hidden = group.length < 2;
+      count.textContent = group.length > 1 ? `${at + 1} / ${group.length}` : '';
+    };
+    const step = (d) => { if (group.length > 1) { at = (at + d + group.length) % group.length; show(); } };
+    const shut = () => {
+      box.hidden = true;
+      document.documentElement.classList.remove('lb-open');
+      img.removeAttribute('src');
+      if (opener) opener.focus();
+    };
+    const build = () => {
+      box = make('div', 'lightbox', 'Photo, enlarged');
+      box.setAttribute('role', 'dialog');
+      box.setAttribute('aria-modal', 'true');
+      box.hidden = true;
+      close = make('button', 'lb-close', 'Close', '×');
+      prev = make('button', 'lb-prev', 'Previous photo', '‹');
+      next = make('button', 'lb-next', 'Next photo', '›');
+      const fig = make('figure');
+      img = make('img');
+      cap = make('figcaption');
+      count = make('span', 'lb-count');
+      fig.append(img, cap);
+      box.append(close, prev, fig, next, count);
+      document.body.appendChild(box);
+      close.addEventListener('click', shut);
+      prev.addEventListener('click', () => step(-1));
+      next.addEventListener('click', () => step(1));
+      box.addEventListener('click', (e) => { if (e.target === box || e.target === fig) shut(); });
+      box.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') shut();
+        else if (e.key === 'ArrowLeft') step(-1);
+        else if (e.key === 'ArrowRight') step(1);
+        else if (e.key === 'Tab') { // the focus stays inside the large view
+          const f = [close, prev, next].filter((b) => !b.hidden);
+          const k = f.indexOf(document.activeElement);
+          e.preventDefault();
+          f[(k + (e.shiftKey ? f.length - 1 : 1) + f.length) % f.length].focus();
+        }
+      });
+    };
+    zooms.forEach((a) => a.addEventListener('click', (e) => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button) return; // the browser opens the file itself
+      e.preventDefault();
+      if (!box) build();
+      const scope = a.closest('[data-gallery]');
+      group = scope ? Array.from(scope.querySelectorAll('a.zoom')) : [a];
+      at = Math.max(0, group.indexOf(a));
+      opener = a;
+      show();
+      box.hidden = false;
+      document.documentElement.classList.add('lb-open');
+      close.focus();
+    }));
+  }
+
+  /* ---- long publication lists: a frame that scrolls, and a button that opens the whole list ---- */
+  document.querySelectorAll('.pubmore button').forEach((b) => {
+    const frame = b.parentElement.previousElementSibling;
+    if (!frame || !frame.classList.contains('pubframe')) return;
+    b.addEventListener('click', () => {
+      const open = frame.classList.toggle('open');
+      b.setAttribute('aria-expanded', String(open));
+      b.textContent = open ? b.dataset.few : b.dataset.all;
+      if (open) frame.removeAttribute('tabindex');
+      else { frame.setAttribute('tabindex', '0'); frame.scrollTop = 0; frame.scrollIntoView({ block: 'nearest' }); }
+    });
+  });
 
   /* ---- hero canvas: a slowly turning planet under a field of stars ---- */
   const canvas = document.getElementById('hero-canvas');

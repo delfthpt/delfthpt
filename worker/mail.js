@@ -3,12 +3,16 @@
 //   email()  forwards every message sent to info@delfthpt.com to the lab members in RECIPIENTS.
 //            Cloudflare Email Routing can forward an address to one mailbox only, so the copies
 //            for several people are made here.
-//   fetch()  receives the contact form of the website (contact.html) and emails it to the same
-//            people, with the visitor's address as reply-to. Nothing is stored.
+//   fetch()  receives the contact form of the website (the Contact page) and emails it to the same
+//            people, or to the one person the visitor chose under "To", with the visitor's address
+//            as reply-to. Nothing is stored.
 //
 // Settings in the Cloudflare dashboard (Workers & Pages > delfthpt-mail > Settings):
 //   Variables   RECIPIENTS       mailboxes that receive the mail, separated by commas. Each one must be
-//                                a verified destination address under Email Routing.
+//                                a verified destination address under Email Routing. An entry is an
+//                                address, or a name with the address in angle brackets, for example
+//                                Ada Lovelace <ada@example.org>. A name lets visitors write to that
+//                                person alone; it must be spelled as in the "To" list of the form.
 //               FROM_ADDRESS     optional sender of form messages (default website@delfthpt.com)
 //               ALLOWED_ORIGINS  optional sites that may post the form (default https://delfthpt.com)
 //   Bindings    Send Email, variable name MAIL
@@ -30,10 +34,24 @@ const hits = new Map();
 let globalHits = [];
 
 const list = (value, fallback = '') => String(value || fallback).split(/[,;\s]+/).map((s) => s.trim()).filter(Boolean);
-const recipients = (env) => list(env.RECIPIENTS);
 const oneLine = (value, max) => String(value ?? '').replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
 const manyLines = (value, max) => String(value ?? '').replace(/\r\n?/g, '\n').replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, '').trim().slice(0, max);
 const isEmail = (s) => /^[^\s@<>()\[\]\\,;:"]+@[^\s@<>()\[\]\\,;:"]+\.[^\s@<>()\[\]\\,;:".]{2,}$/.test(s);
+// A person's name as the form sends it: letters, spaces, dots, hyphens and apostrophes only.
+const isName = (s) => /^[\p{L}][\p{L} .'’-]{1,59}$/u.test(s);
+const same = (a, b) => a.trim().replace(/\s+/g, ' ').toLowerCase() === b.trim().replace(/\s+/g, ' ').toLowerCase();
+
+// The mailboxes in RECIPIENTS, each with the name given to it (or none).
+export function people(env) {
+  const out = [];
+  for (const entry of String((env && env.RECIPIENTS) || '').split(/[,;\n]+/)) {
+    const named = entry.match(/^\s*"?([^"<>]*?)"?\s*<\s*([^<>\s]+)\s*>\s*$/);
+    if (named) out.push({ name: oneLine(named[1], 100), address: named[2] });
+    else for (const address of entry.split(/\s+/).filter(Boolean)) out.push({ name: '', address });
+  }
+  return out;
+}
+const recipients = (env) => people(env).map((p) => p.address);
 
 function allowedOrigin(request, env) {
   const origin = request.headers.get('Origin') || '';
@@ -65,6 +83,8 @@ export function readForm(data, now = Date.now()) {
   const email = oneLine(data.email, LIMITS.email);
   const topic = TOPICS.includes(data.topic) ? data.topic : TOPICS[0];
   const message = manyLines(data.message, LIMITS.message);
+  const wanted = typeof data.to === 'string' ? oneLine(data.to, 100) : '';
+  const to = isName(wanted) ? wanted : '';                                    // the person chosen under "To", if any
   if (!name) return { error: 'Please enter your name.' };
   if (!isEmail(email)) return { error: 'Please enter a valid email address, so that we can answer you.' };
   if (message.length < LIMITS.minMessage) return { error: 'Please write a message of at least a few words.' };
@@ -74,14 +94,15 @@ export function readForm(data, now = Date.now()) {
     `Name:   ${name}`,
     `Email:  ${email}`,
     `Topic:  ${topic}`,
+    `For:    ${to || 'the whole lab team'}`,
     '',
     message,
     '',
     '-- ',
     `Reply to this email to answer ${name} directly.`,
-    `Sent through ${SITE}/contact.html on ${new Date(now).toUTCString()}.`,
+    `Sent through ${SITE}/contact on ${new Date(now).toUTCString()}.`,
   ].join('\n');
-  return { mail: { name, email, subject: `Website contact: ${topic} (${name})`, text } };
+  return { mail: { name, email, to, subject: `Website contact${to ? ` for ${to}` : ''}: ${topic} (${name})`, text } };
 }
 
 /* ---------- sending ---------- */
@@ -137,21 +158,30 @@ const legacy = (env, one, mail, from) => env.MAIL.send(new EmailMessage(from, on
 })));
 const why = (err) => (err && (err.code || err.message)) || String(err);
 
-// One message to everybody, so that the team sees who else received it. If that is refused (for
-// example because one mailbox has not been verified yet), every mailbox gets its own copy instead,
-// and the ones that can be reached still receive the message.
+// A message for one person goes to that person alone, when RECIPIENTS knows a mailbox under that name.
+// Otherwise, and when that mailbox refuses the message (for example because it has not been verified
+// yet), the message goes to the whole team, and its "For:" line says who it is meant for.
+//
+// For the team: one message to everybody, so that the team sees who else received it. If that is
+// refused, every mailbox gets its own copy instead, and the ones that can be reached still receive it.
+// Returns how many copies went out and whether they went to the 'person' or to the 'team'.
 async function deliver(env, mail) {
-  const to = recipients(env);
+  const all = people(env);
+  const to = all.map((p) => p.address);
   const from = oneLine(env.FROM_ADDRESS, 200) || DEFAULT_FROM;
   if (!to.length) throw new Error('RECIPIENTS is empty');
-  if (to.length > 1) {
-    try { await structured(env, to, mail, from); return to.length; } catch (err) { console.log('send to all failed:', why(err)); }
+  const one = async (address) => { try { await structured(env, [address], mail, from); } catch (err) { await legacy(env, address, mail, from); } };
+
+  const person = mail.to ? all.find((p) => p.name && same(p.name, mail.to)) : null;
+  if (person) {
+    try { await one(person.address); return { count: 1, to: 'person' }; } catch (err) { console.log('send to the chosen person failed:', why(err)); }
   }
-  const results = await Promise.allSettled(to.map(async (one) => {
-    try { await structured(env, [one], mail, from); } catch (err) { await legacy(env, one, mail, from); }
-  }));
+  if (to.length > 1) {
+    try { await structured(env, to, mail, from); return { count: to.length, to: 'team' }; } catch (err) { console.log('send to all failed:', why(err)); }
+  }
+  const results = await Promise.allSettled(to.map(one));
   results.forEach((r, i) => { if (r.status === 'rejected') console.log(`send to recipient ${i + 1} failed:`, why(r.reason)); });
-  return results.filter((r) => r.status === 'fulfilled').length;
+  return { count: results.filter((r) => r.status === 'fulfilled').length, to: 'team' };
 }
 
 export default {
@@ -182,8 +212,8 @@ export default {
     if (tooMany(request.headers.get('CF-Connecting-IP') || 'unknown', Date.now())) return reply(429, { ok: false, error: 'Too many messages in a short time. Please try again later.' }, origin);
 
     try {
-      const delivered = await deliver(env, form.mail);
-      if (delivered > 0) return reply(200, { ok: true }, origin);
+      const sent = await deliver(env, form.mail);
+      if (sent.count > 0) return reply(200, { ok: true, to: sent.to }, origin);
     } catch (err) { console.log('contact form failed:', why(err)); }
     return reply(502, { ok: false, error: 'The message could not be sent. Please try again later.' }, origin);
   },

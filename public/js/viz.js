@@ -5,7 +5,8 @@
    Every illustration plays a tour by itself: a list of scenes, each with one sentence under the picture. The
    controls glide to the values of a scene and rest there, so that the sentence can be read. While they glide,
    the numbers in the picture and next to the sliders change in coarse steps, a few times a second at most.
-   Touching a control ends the tour and hands the controls over. Play starts it again from where things stand. */
+   Pause stops the picture exactly as it is, and Play lets it go on from there. Using a control ends the tour and
+   hands the picture over: it then keeps moving with the visitor's values. Pause and then Play give it back to the tour. */
 (() => {
   'use strict';
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -98,24 +99,29 @@
   /* ---------- tours ---------- */
   // A tour plays `count` scenes in turn. `enter(k)` starts scene k: it notes where the controls are and where they
   // should go, sets the sentence, and returns { glide, hold } in seconds. `move(u)` is called while the controls
-  // glide, with u running from 0 to 1.
-  function tour(count, enter, move) {
-    let k = -1, clock = 0, dur = null;
+  // glide, with u running from 0 to 1. The tour only moves on when it is ticked, so a paused picture keeps its place.
+  // `rest()` is optional: after the visitor has used the controls, the tour first stays with what they set for that
+  // many seconds, and only then goes on to its next scene.
+  function tour(count, enter, move, rest) {
+    let k = -1, clock = 0, dur = null, handed = false;
     const self = {
       moving: false,
       go(to) {
-        k = ((to % count) + count) % count; clock = 0; dur = enter(k);
+        k = ((to % count) + count) % count; clock = 0; handed = false; dur = enter(k);
         self.moving = dur.glide > 0;
         if (!self.moving) move(1);
       },
       tick(dt) {
-        if (!dur) { self.go(k + 1); return; }
+        if (!dur) {
+          if (handed && rest) { handed = false; clock = 0; dur = { glide: 0, hold: rest() }; } else self.go(k + 1);
+          return;
+        }
         clock += dt;
         if (self.moving) { const u = Math.min(1, clock / dur.glide); move(ease(u)); if (u >= 1) self.moving = false; }
         if (clock >= dur.glide + dur.hold) self.go(k + 1);
       },
-      stop() { dur = null; self.moving = false; },         // the next tick starts the scene after this one
-      from(to) { k = to - 1; dur = null; self.moving = false; }, // the next tick starts scene `to`
+      stop() { dur = null; self.moving = false; handed = true; },                 // the visitor takes over
+      from(to) { k = to - 1; dur = null; self.moving = false; handed = false; }, // the next tick starts scene `to`
     };
     return self;
   }
@@ -460,7 +466,8 @@
     const everyday = [[-3, 'water'], [-1.1, 'olive oil'], [1, 'honey'], [2.4, 'peanut butter'], [8.3, 'pitch']];
     const presets = [['venus', 1.5], ['venus', -1], ['moon', 2], ['mars', 3.5], ['io', 0.5], ['psyche', -2.5], ['earth', 6.5]];
     const DIST = 100; // metres of slope that the picture shows
-    let key = 'venus', L = 1.5, front = api.still ? 0.75 : 0, hold = 0, gauge = (L + 3) / 13;
+    const PAUSE = 1.6; // seconds that a flow rests at the end of the slope before it starts again
+    let key = 'venus', L = 1.5, front = 0, hold = 0, gauge = (L + 3) / 13; // front: how far the flow has come, 0 to 1
     const calm = calmer();
 
     const fmtEta = (l) => {
@@ -485,7 +492,7 @@
       return `${cat[2]}: ${cat[3]} ${flow}`;
     }
     const caption = () => api.setCap(sentence(key, L));
-    function again() { if (!api.still) { front = 0; hold = 0; } }
+    function again() { front = 0; hold = 0; }
     function restart() { again(); caption(); api.kick(); }
 
     const bset = segmented(bar, order.map((k) => [k, G[k].name]), key, (k) => { key = k; restart(); }, 'Planetary body');
@@ -499,7 +506,11 @@
       key = body; bset.set(key); from = L; to = l; again();
       api.setCap(sentence(body, l));
       return { glide: from === to ? 0 : 1.2, hold: clamp(screen(calc(body, l).v) + 2.5, 5.5, 9) };
-    }, (u) => { L = lerp(from, to, u); });
+    }, (u) => { L = lerp(from, to, u); }, () => {
+      // Taking over from the visitor: their flow first runs to its end, and the tour goes on when it would start again.
+      const run = screen(calc().v), left = hold > 0 ? hold : (1 - front) * run + PAUSE;
+      return clamp(left < 2.5 ? left + run + PAUSE : left, 2.5, 9);
+    });
 
     return {
       play(first) { if (first) tr.from(0); },
@@ -516,8 +527,9 @@
         const S = G[key], c = calc(), compact = w < 560;
         const n = clamp((Math.log10(c.v) + 9.7) / 10.4, 0, 1); // 0 for the slowest flow, 1 for the fastest
         if (!api.still && dt) {
-          if (hold > 0) { hold -= dt; if (hold <= 0) front = 0; } else { front += dt / screen(c.v); if (front >= 1) { front = 1; hold = 1.6; } }
+          if (hold > 0) { hold -= dt; if (hold <= 0) front = 0; } else { front += dt / screen(c.v); if (front >= 1) { front = 1; hold = PAUSE; } }
         }
+        const reach = api.still ? 0.75 : front; // the still picture shows a flow that is most of the way down
         const stress = (L + 3) / 13;
         gauge = api.still ? stress : gauge + (stress - gauge) * Math.min(1, dt * 6);
 
@@ -547,7 +559,7 @@
 
         // lava
         const hotA = L < 2 ? '#fff3b8' : '#ffb24d', hotB = L < 2 ? '#ff8a2a' : mix('ff7a2a', '7a1e0a', clamp((L - 2) / 8, 0, 1));
-        const x0 = vx, x1 = w * 0.95, xf = lerp(x0 + 8, x1, front);
+        const x0 = vx, x1 = w * 0.95, xf = lerp(x0 + 8, x1, reach);
         const TH = (compact ? 6 : 9) + (compact ? 16 : 30) * clamp((L + 3) / 13, 0, 1);
         // the surface the lava rests on: the flank of the vent cone, then the plain
         const base = (x) => (x < vx + vw ? lerp(ground(vx) - vh, ground(vx + vw), clamp((x - vx - 6) / (vw - 6), 0, 1)) : ground(x));
@@ -610,7 +622,7 @@
         const kw = kh + 4 + Math.max(measure(ctx, head, f1), measure(ctx, need, f2, 700)) + 12;
         ctx.fillStyle = 'rgba(7,10,16,.8)'; box(ctx, kx, ky, kw, kh, 10); ctx.fill();
         ctx.strokeStyle = LINE; ctx.lineWidth = 1; box(ctx, kx, ky, kw, kh, 10); ctx.stroke();
-        const dx = kx + kh / 2, dy = ky + kh / 2 + 1, ang = -Math.PI / 2 + front * TAU;
+        const dx = kx + kh / 2, dy = ky + kh / 2 + 1, ang = -Math.PI / 2 + reach * TAU;
         ctx.fillStyle = '#c9ced8'; ctx.fillRect(dx - 2, dy - kr - 4, 4, 3); // the crown of the stopwatch
         ctx.strokeStyle = 'rgba(255,255,255,.22)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(dx, dy, kr, 0, TAU); ctx.stroke();
         ctx.strokeStyle = ACCENT; ctx.beginPath(); ctx.arc(dx, dy, kr, -Math.PI / 2, ang); ctx.stroke();
@@ -1086,14 +1098,15 @@
     const ctx = canvas.getContext('2d');
     const bar = el.querySelector('.bar'), cap = el.querySelector('.cap');
     // visible: near the screen, so the picture is drawn. inView: a good part is on screen, so the tour moves on.
-    // frozen: stopped with the Pause button, until a control is touched or Play is pressed.
-    let w = 0, h = 0, raf = 0, visible = false, inView = false, frozen = false, started = false, last = 0, room = 0;
-    const t0 = performance.now();
+    // frozen: stopped with the Pause button, until Play is pressed or a control is used.
+    // started: the tour has begun, or the visitor was first. own: the visitor has used the controls since the tour last
+    // had them. time: seconds of animation, which stand still in a pause.
+    let w = 0, h = 0, raf = 0, visible = false, inView = false, frozen = false, started = false, own = false, last = 0, time = 0, room = 0;
     const tall = (node) => Math.ceil(node.getBoundingClientRect().height); // whole pixels, so that the height never flickers
     const api = {
-      auto: false,   // the tour is playing
-      live: false,   // the tour is playing and the picture is on screen
-      still: reduce, // no motion at all: the visitor asked the system for reduced motion and has not pressed Play
+      auto: false,   // the tour has the controls (it may be paused)
+      live: false,   // the tour moves on: it has the controls, the picture is on screen and nothing is paused
+      still: reduce, // the still picture: the visitor asked the system for reduced motion and Play is not in force
       kick() { if (!raf) raf = requestAnimationFrame(frame); },
       setCap(s) {
         if (cap.textContent === s) return;
@@ -1118,47 +1131,61 @@
       cap.style.minHeight = most ? `${most}px` : '';
     }
 
-    // Play and Pause
+    // Play and Pause. The button says what a press does to the picture: Pause while anything moves, Play while it rests.
     const btn = document.createElement('button');
     btn.type = 'button'; btn.className = 'play';
     btn.innerHTML = '<svg viewBox="0 0 14 14" width="12" height="12" aria-hidden="true" focusable="false"><path/></svg><span></span>';
+    const moving = () => !frozen && !api.still;
+    let shown = null;
     const paint = () => {
-      btn.querySelector('path').setAttribute('d', api.auto ? ICON.pause : ICON.play);
-      btn.querySelector('span').textContent = api.auto ? 'Pause' : 'Play';
-      btn.setAttribute('aria-label', api.auto ? 'Pause the animation' : 'Play the animation');
+      const on = moving();
+      if (on === shown) return;
+      shown = on;
+      btn.querySelector('path').setAttribute('d', on ? ICON.pause : ICON.play);
+      btn.querySelector('span').textContent = on ? 'Pause' : 'Play';
+      btn.setAttribute('aria-label', on ? 'Pause the animation' : 'Play the animation');
     };
     paint();
     el.insertBefore(btn, canvas);
-    function setAuto(on, freeze, first) {
-      frozen = !on && Boolean(freeze);
-      if (on) api.still = false;
-      if (api.auto !== on) {
-        api.auto = on;
-        if (on) inst.play(Boolean(first)); else inst.pause();
-        paint();
-      }
-      api.kick();
+    // Play: everything moves again and the tour has the controls. A paused tour goes on exactly where it stopped.
+    function play(first) {
+      started = true; frozen = false; api.still = false;
+      if (!api.auto) { api.auto = true; own = false; inst.play(Boolean(first)); }
+      paint(); api.kick();
     }
-    btn.addEventListener('click', () => setAuto(!api.auto, true));
-    canvas.addEventListener('click', () => setAuto(!api.auto, true));
-    // A control in the bar under the picture takes over from the tour.
+    // Pause: the picture stops as it is. Nothing else changes, so that Play can go on from the same moment.
+    function pause() { started = true; frozen = true; paint(); api.kick(); }
+    // A control was used: the tour ends, and the picture follows the visitor.
+    function handOver() {
+      started = true; frozen = false;
+      if (reduce) api.still = true;
+      if (!own) { own = true; api.auto = false; inst.pause(); }
+      paint(); api.kick();
+    }
+    const press = () => (moving() ? pause() : play());
+    btn.addEventListener('click', press);
+    canvas.addEventListener('click', press);
+    // A finger that lands on a control may only be scrolling the page, so touch counts once the control really changes.
     const hands = (e) => {
       if (!e.target.closest('button,input')) return;
+      if (e.type === 'pointerdown' && e.pointerType === 'touch') return;
       if (e.type === 'keydown' && ['Tab', 'Shift', 'Control', 'Alt', 'Meta', 'Escape'].includes(e.key)) return;
-      setAuto(false, false);
+      handOver();
     };
-    ['pointerdown', 'keydown', 'input'].forEach((ev) => bar.addEventListener(ev, hands));
+    ['pointerdown', 'keydown', 'input', 'click'].forEach((ev) => bar.addEventListener(ev, hands));
 
     function frame(now) {
       raf = 0;
       if (!w || !h) return;
-      const dt = last ? clamp((now - last) / 1000, 0, 0.1) : 0;
+      const run = moving();
+      const dt = run && last ? clamp((now - last) / 1000, 0, 0.1) : 0;
       last = now;
-      api.live = api.auto && inView;
+      time += dt;
+      api.live = api.auto && inView && run;
       ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
       ctx.clearRect(0, 0, w, h);
-      inst.draw(ctx, w, h, Math.max(0, (now - t0) / 1000), frozen || api.still ? 0 : dt); // a frame timestamp can precede t0 slightly
-      if (visible && !frozen && !api.still) raf = requestAnimationFrame(frame); else last = 0;
+      inst.draw(ctx, w, h, time, dt);
+      if (visible && run) raf = requestAnimationFrame(frame); else last = 0;
     }
     function resize() {
       const r = canvas.getBoundingClientRect();
@@ -1175,9 +1202,9 @@
       // The tour starts by itself the first time a good part of the picture is on screen.
       new IntersectionObserver((es) => {
         inView = es[0].isIntersecting;
-        if (inView && !started && !reduce) { started = true; setAuto(true, false, true); }
+        if (inView && !started && !reduce) play(true);
       }, { threshold: 0.35 }).observe(canvas);
-    } else { visible = inView = true; if (!reduce) { started = true; setAuto(true, false, true); } }
+    } else { visible = inView = true; if (!reduce) play(true); }
     el.classList.add('ready');
     resize();
   }

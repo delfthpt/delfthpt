@@ -112,7 +112,14 @@ The illustrations on the equipment page are drawn by [`public/js/viz.js`](public
 - **Gas-mixing furnace**: oxygen fugacity of ideal CO₂–CO mixtures at 1 bar, relative to the iron–wüstite and quartz–fayalite–magnetite buffers. The pressure slider moves only the two buffer lines, after Frost (1991). The furnace itself always works at 1 bar.
 - **Venus clouds**: the cloud decks between about 48 and 70 km, and a schematic of how an ionic liquid forms.
 
-Each illustration plays by itself as a short tour of scenes: it glides to a scene, rests there, and goes on to the next one. While it glides, the numbers next to the sliders change in coarse steps and the sentence under the picture already describes the scene it is heading for, so the text stays readable. The room for the longest sentence is reserved, so that nothing below the picture moves. The Pause button, or a click on the picture, freezes it. Using a control stops the tour and leaves the picture to the visitor, and Play starts the tour again. For visitors who have asked their device for reduced motion, nothing moves until they press Play.
+Each illustration plays by itself as a short tour of scenes: it glides to a scene, rests there, and goes on to the next one. While it glides, the numbers next to the sliders change in coarse steps and the sentence under the picture already describes the scene it is heading for, so the text stays readable. The room for the longest sentence is reserved, so that nothing below the picture moves.
+
+The button at the top right says what a press will do: **Pause** while anything in the picture moves, **Play** while it rests. A click on the picture does the same as the button.
+
+- **Pause** freezes the picture exactly as it is, and **Play** lets it go on from that same moment. Nothing jumps to another scene.
+- Using a control (a planet, a slider) ends the tour and hands the picture over to the visitor: it keeps moving with their values, so the button still says Pause. Pause and then Play give the picture back to the tour. In the lava flow illustration the visitor's own flow first runs to its end before the tour goes on.
+- On a phone, a finger that lands on a control while scrolling the page does not count as using it. The tour only ends when a control really changes.
+- For visitors who have asked their device for reduced motion, nothing moves until they press Play, and using a control brings back the still picture.
 
 The values, the planetary ranges, the sentences and the scenes of each tour are at the top of each section of that file, so they are easy to correct.
 

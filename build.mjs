@@ -328,10 +328,12 @@ ${head('Equipment and experiments', 'A solar system of conditions in one laborat
 const F = D.site.contact.form;
 // A person with a photo or a biography gets a wide card: the photo on the left with the fields of expertise and
 // the links under it, the text on the right. The others get a small card until their details arrive.
+// "Send a message" is not one of the links: it stands by itself at the bottom of the card, in grey.
 const detailed = (p) => Boolean(p.photo || p.bio);
 const personCard = (p) => {
   const links = (p.links || []).map((l) => `<li><a href="${l[1]}" rel="noopener">${esc(l[0])}</a></li>`);
-  if (p.contact && F.people.includes(p.contact)) links.push(`<li><a href="/contact#${slug(p.contact)}">Send a message</a></li>`);
+  const msg = p.contact && F.people.includes(p.contact)
+    ? `<a class="p-msg" href="/contact#${slug(p.contact)}"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path d="M1.75 3.5h12.5v9H1.75zM2 4l6 4.6L14 4"/></svg>Send a message</a>` : '';
   let photo = `<div class="avatar" aria-hidden="true">${esc(p.init)}</div>`;
   if (p.photo) {
     const [w, h] = imgSize(p.photo);
@@ -341,13 +343,13 @@ const personCard = (p) => {
       ? `<a class="zoom ${cls}" href="/img/full/${p.photo}" data-cap="${esc(p.name)}">${img}</a>`
       : `<div class="${cls}">${img}</div>`;
   }
-  const meta = `${p.tags.length ? `<p class="p-label">Expertise</p><div class="tags">${p.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join('')}</div>` : ''}${links.length ? `<ul class="links">${links.join('')}</ul>` : ''}`;
+  const meta = `${p.tags.length ? `<p class="p-label">Expertise</p><div class="tags">${p.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join('')}</div>` : ''}${links.length ? `<ul class="links">${links.join('')}</ul>` : ''}${msg}`;
   return `<div class="card person${detailed(p) ? '' : ' small'} reveal">
       <div class="p-photo">${photo}</div>
       <div class="p-text">
         <h3>${esc(p.name)}</h3>
         ${p.role ? `<p class="role">${esc(p.role)}</p>` : `<p class="role">${todo('role to add')}</p>`}
-        <p${p.bio ? '' : ' class="muted"'}>${p.bio ? esc(p.bio) : 'Bio coming soon.'}${p.bio ? '' : ` ${todo('bio and photo to add')}`}${p.bio && !p.photo ? ` ${todo('photo to add')}` : ''}</p>
+        <p${p.bio ? '' : ' class="muted"'}>${p.bio ? esc(p.bio) : 'Bio coming soon.'}${p.bio ? '' : ` ${todo('bio and photo to add')}`}${p.bio && !p.photo ? ` ${todo('photo to add')}` : ''}${mark(p)}</p>
       </div>
       ${meta ? `<div class="p-meta">${meta}</div>` : ''}
     </div>`;
@@ -356,7 +358,7 @@ pages.push({
   file: 'people.html', title: 'People',
   desc: `The team of the ${D.site.name}, led by Dr. Edgar Steenstra.`,
   body: `
-${head('People', 'The team', 'Experimentalists, geochemists and planetary scientists working at the Faculty of Aerospace Engineering of TU Delft.')}
+${head('People', 'The team', 'We are a young but fast-growing team with members at every career stage: experimentalists, geochemists, materials scientists and planetary scientists at the Faculty of Aerospace Engineering of TU Delft.')}
 <section>
   <div class="wrap">
     <div class="people">
@@ -395,23 +397,23 @@ ${head('Publications', 'Publications', 'Papers from the laboratory, followed by 
 </section>
 <section class="alt">
   <div class="wrap">
+    <h2>Earlier work by Edgar Steenstra</h2>
+    <p class="muted">Compiled from public university profiles and the publishers’ records. A complete and current list is on <a href="https://scholar.google.nl/citations?user=RnRn5XYAAAAJ&amp;hl=nl" rel="noopener">Google Scholar</a>. ${todo('list to confirm')}</p>
+    ${pubList(D.piPubs, 'Earlier work by Edgar Steenstra')}
+  </div>
+</section>
+<section>
+  <div class="wrap">
     <h2>Venus clouds and ionic liquids</h2>
     <p class="muted">Work by Iaroslav Iakubivskyi and co-authors. His complete list is on <a href="${D.scholar.iakubivskyi}" rel="noopener">Google Scholar</a>. ${todo('list to confirm')}</p>
     ${pubList(D.cloudPubs, 'Venus clouds and ionic liquids')}
   </div>
 </section>
-<section>
+<section class="alt">
   <div class="wrap">
     <h2>Space missions, instruments and field analogues</h2>
     <p class="muted">Earlier work by Iaroslav Iakubivskyi and co-authors, from the Comet Interceptor mission to electric solar wind sails and nanospacecraft. ${todo('list to confirm')}</p>
     ${pubList(D.missionPubs, 'Space missions, instruments and field analogues')}
-  </div>
-</section>
-<section class="alt">
-  <div class="wrap">
-    <h2>Earlier work by Edgar Steenstra</h2>
-    <p class="muted">Compiled from public university profiles and the publishers’ records. A complete and current list is on <a href="https://scholar.google.nl/citations?user=RnRn5XYAAAAJ&amp;hl=nl" rel="noopener">Google Scholar</a>. ${todo('list to confirm')}</p>
-    ${pubList(D.piPubs, 'Earlier work by Edgar Steenstra')}
   </div>
 </section>`,
 });

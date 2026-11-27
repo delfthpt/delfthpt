@@ -50,7 +50,7 @@ Only use photos the lab owns or has written permission to publish. Manufacturer 
 
 ## People
 
-Someone with a photo or a biography gets a wide card on the People page: the photo on the left with the fields of expertise (`tags`) and the links under it, the text on the right. Someone without both gets a small card under the others until the details arrive. `links` is a list of pairs, a label and an address, for example `['Google Scholar', 'https://scholar.google.com/...']`. With `contact: 'Name'`, the card gets a **Send a message** link that opens the contact form with that person chosen.
+Someone with a photo or a biography gets a wide card on the People page: the photo on the left with the fields of expertise (`tags`) and the links under it, the text on the right. Someone without both gets a small card under the others until the details arrive. `links` is a list of pairs, a label and an address, for example `['Google Scholar', 'https://scholar.google.com/...']`. With `contact: 'Name'`, the card gets a **Send a message** link that opens the contact form with that person chosen. It stands at the bottom of the card, in grey, apart from the profile links. The cards appear in the order of the `people` list. The lab chose that order on 27 November 2026: Edgar first, then the PhD candidates with women and men in turn, then Iaroslav.
 
 ## Review mode
 

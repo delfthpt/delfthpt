@@ -4,8 +4,13 @@
    text for each view. This script puts the model over the picture and lets visitors turn it. The facts about the
    scan, the views and the labelled instruments are in src/data.mjs under `scan` and arrive here in data-scan.
 
-   The points come in three parts (public/scan/room-1.bin and so on; the README tells how they are made). The first
-   part alone shows the whole room thinly, so the model appears quickly and fills in while the rest arrives.
+   The model is a surface of triangles (public/scan/room.bin) with the colours of the scan laid over it as a
+   picture, the texture (public/scan/room-1024.webp and larger; the README tells how these files are made). The
+   triangles and the smallest texture are loaded first, so that the model appears quickly. The sharpest texture
+   that suits the device takes its place as soon as it has arrived.
+
+   Only the side of a surface that faced the scanner is drawn. Seen from outside the room, the walls nearest to
+   the camera therefore vanish by themselves, and visitors look into the room as into a model.
 
    Play runs a tour: the model turns slowly, then the camera visits each instrument and rests there. Turning the
    model, zooming or choosing a view stops the tour, and Play starts it again. For visitors who have asked their
@@ -16,22 +21,21 @@
   if (!root || !root.dataset.scan) return;
   const stage = root.querySelector('.scan-stage');
   const canvas = document.createElement('canvas');
-  const gl = canvas.getContext('webgl', { antialias: false, alpha: false });
-  // Without WebGL, or without a way to unpack the points, the picture and the texts stay as they are.
+  const gl = canvas.getContext('webgl', { antialias: true, alpha: false });
+  // Without WebGL, or without a way to unpack the triangles, the picture and the texts stay as they are.
   if (!stage || !gl || !window.fetch || typeof DecompressionStream === 'undefined') return;
 
   const S = JSON.parse(root.dataset.scan);
   const DEG = Math.PI / 180;
   const FOV = 34 * DEG;                 // angle of view over the shorter side of the picture
   const BG = [7 / 255, 10 / 255, 16 / 255];
-  const SPACING = 0.027;                // distance between neighbouring points in the scan, in metres
   const still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const small = window.matchMedia && matchMedia('(max-width: 700px)').matches;
-  // Visitors who have asked their browser to save data, and devices with little memory, get the first two
-  // parts: half of the points, drawn a little larger.
+  // The textures that this device can hold, smallest first. Visitors who have asked their browser to save data,
+  // and devices with little memory, stop one size below the largest.
   const frugal = !!(navigator.connection && navigator.connection.saveData) || (navigator.deviceMemory || 8) <= 2;
-  const parts = S.parts.slice(0, frugal ? 2 : 3);
-  const total = S.parts.reduce((n, p) => n + p.points, 0);
+  const fits = S.textures.filter((t) => t.size <= gl.getParameter(gl.MAX_TEXTURE_SIZE));
+  const textures = frugal ? fits.slice(0, Math.max(1, fits.length - 1)) : fits;
+  if (!textures.length) return;
 
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   const lerp = (a, b, u) => a + (b - a) * u;
@@ -85,8 +89,9 @@
   const cutFor = (span) => clamp(span * 0.66, 1.4, 9);
   const cam = { x: first.at[0], y: first.at[1], z: first.at[2], az: first.look[0] * DEG, el: first.look[1] * DEG, span: first.look[2], cut: cutFor(first.look[2]) };
   let W = 2, H = 2, ratio = 1;           // size of the picture in CSS pixels, and device pixels per CSS pixel
-  let mat = null, eye = [0, 0, 0], dist = 1, scale = 1;
-  let cutN = [1, 0], cutD = 99;          // the cut: points with x*cutN[0] + y*cutN[1] beyond cutD are left away
+  let mat = null, eye = [0, 0, 0], dist = 1;
+  let axes = null, lens = [1, 1];      // the three axes of the camera, and how strongly it magnifies across and up
+  let cutN = [1, 0], cutD = 99;          // the cut: whatever has x*cutN[0] + y*cutN[1] beyond cutD is left away
   let current = first.key;
 
   function update() {
@@ -114,7 +119,8 @@
       a * x[2], f * y[2], c * z[2], -z[2],
       a * t[0], f * t[1], c * t[2] + d, -t[2],
     ]);
-    scale = H * ratio * f / 2;           // device pixels per metre at a distance of one metre
+    axes = [x, y, z];
+    lens = [a, f];
   }
   // Where a point of the room lands in the picture, in CSS pixels. Null when it is behind the camera.
   function project(p) {
@@ -134,56 +140,53 @@
     gl.linkProgram(p);
     return gl.getProgramParameter(p, gl.LINK_STATUS) ? p : null;
   };
-  // Each point is a small disc that faces the camera. A wall is thinned out and then left away as the camera
-  // moves to the outside of it (uHide), and far points are dimmed a little so that the room keeps its depth.
-  const POINT_VS = `
-    attribute vec3 aPos; attribute vec3 aCol;
-    uniform mat4 uMat; uniform vec3 uOrigin; uniform float uStep; uniform float uSize; uniform float uMax;
-    uniform vec3 uWall; uniform vec3 uHide; uniform vec3 uCut; uniform vec2 uHaze; uniform vec3 uBg;
-    varying vec3 vCol; varying float vRound;
+  // The surface takes its colours from the texture. What stands beyond the cut is left away (vCut), and far
+  // surfaces are dimmed a little so that the room keeps its depth (vHaze).
+  const MESH_VS = `
+    attribute vec3 aPos; attribute vec2 aAt;
+    uniform mat4 uMat; uniform vec3 uOrigin; uniform float uStep; uniform vec3 uCut; uniform vec2 uHaze;
+    varying vec2 vAt; varying float vCut; varying float vHaze;
     void main() {
       vec3 p = aPos * uStep + uOrigin;
       vec4 q = uMat * vec4(p, 1.0);
-      gl_PointSize = clamp(uSize / q.w, 1.5, uMax);
-      vRound = step(3.5, gl_PointSize);
-      float hide = 0.0;
-      if (p.x < uWall.x) hide = max(hide, uHide.x);
-      if (p.y > uWall.y) hide = max(hide, uHide.y);
-      if (p.y < uWall.z) hide = max(hide, uHide.z);
-      float r = fract(sin(dot(aPos.xy, vec2(0.129898, 0.78233)) + aPos.z * 0.37719) * 43758.5453);
-      if (dot(p.xy, uCut.xy) - uCut.z > (r - 0.5) * 0.08) hide = 2.0;
-      vec3 c = aCol;
-      c = mix(vec3(dot(c, vec3(0.299, 0.587, 0.114))), c, 1.18);
-      c = (c - 0.5) * 1.08 + 0.52;
-      vCol = mix(c, uBg, 0.42 * clamp((q.w - uHaze.x) / uHaze.y, 0.0, 1.0));
-      gl_Position = r < hide ? vec4(2.0, 2.0, 2.0, 1.0) : q;
+      vAt = aAt / 32768.0;
+      vCut = dot(p.xy, uCut.xy) - uCut.z;
+      vHaze = 0.42 * clamp((q.w - uHaze.x) / uHaze.y, 0.0, 1.0);
+      gl_Position = q;
     }`;
-  const POINT_FS = `
-    precision mediump float;
-    varying vec3 vCol; varying float vRound;
+  // A place in a texture of 4096 pixels needs more digits than "mediump" promises, so "highp" is used where the
+  // device has it (nearly all have).
+  const fine = gl.getShaderPrecisionFormat(gl.FRAGMENT_SHADER, gl.HIGH_FLOAT).precision > 0 ? 'highp' : 'mediump';
+  const MESH_FS = `
+    precision ${fine} float;
+    uniform sampler2D uTex; uniform vec3 uBg;
+    varying vec2 vAt; varying float vCut; varying float vHaze;
     void main() {
-      vec2 d = gl_PointCoord - 0.5;
-      if (vRound > 0.5 && dot(d, d) > 0.25) discard;
-      gl_FragColor = vec4(vCol, 1.0);
+      if (vCut > 0.0) discard;
+      vec3 c = texture2D(uTex, vAt).rgb;
+      c = mix(vec3(dot(c, vec3(0.299, 0.587, 0.114))), c, 1.12);
+      c = (c - 0.5) * 1.05 + 0.51;
+      gl_FragColor = vec4(mix(c, uBg, vHaze), 1.0);
     }`;
   const FLAT_VS = 'attribute vec3 aPos; uniform mat4 uMat; void main() { gl_Position = uMat * vec4(aPos, 1.0); }';
   const FLAT_FS = 'precision mediump float; uniform vec4 uColor; void main() { gl_FragColor = uColor; }';
 
-  let pointProg = null, flatProg = null, loc = {}, floorBuf = null, gridBuf = null, gridCount = 0, maxSize = 64;
-  const clouds = [];                    // one entry for each part that has arrived: { pos, col, n, posBuf, colBuf }
-  let loaded = 0;
+  let meshProg = null, flatProg = null, loc = {}, floorBuf = null, gridBuf = null, gridCount = 0;
+  const mesh = [];                      // the parts of the mesh: { pos, at, idx, ball, group, nv, nt, posBuf, atBuf, idxBuf }
+  const GROUP = 64;                     // triangles that follow each other in the file lie together: see `meet`
+  let tex = null, shown = null;         // the texture on the model, and which entry of `textures` it is
+  let loaded = 0;                       // triangles that can be drawn
 
   function setup() {
-    pointProg = program(POINT_VS, POINT_FS);
+    meshProg = program(MESH_VS, MESH_FS);
     flatProg = program(FLAT_VS, FLAT_FS);
-    if (!pointProg || !flatProg) return false;
-    for (const name of ['uMat', 'uOrigin', 'uStep', 'uSize', 'uMax', 'uWall', 'uHide', 'uCut', 'uHaze', 'uBg']) loc[name] = gl.getUniformLocation(pointProg, name);
-    loc.aPos = gl.getAttribLocation(pointProg, 'aPos');
-    loc.aCol = gl.getAttribLocation(pointProg, 'aCol');
+    if (!meshProg || !flatProg) return false;
+    for (const name of ['uMat', 'uOrigin', 'uStep', 'uCut', 'uHaze', 'uTex', 'uBg']) loc[name] = gl.getUniformLocation(meshProg, name);
+    loc.aPos = gl.getAttribLocation(meshProg, 'aPos');
+    loc.aAt = gl.getAttribLocation(meshProg, 'aAt');
     loc.fMat = gl.getUniformLocation(flatProg, 'uMat');
     loc.fColor = gl.getUniformLocation(flatProg, 'uColor');
     loc.fPos = gl.getAttribLocation(flatProg, 'aPos');
-    maxSize = Math.min(96, gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE)[1]);
     // The floor plate under the room and a grid on it with squares of one metre.
     const m = 0.3, x0 = S.origin[0] - m, y0 = S.origin[1] - m, x1 = S.box[0] + m, y1 = S.box[1] + m, z = S.origin[2] - 0.01;
     floorBuf = gl.createBuffer();
@@ -196,20 +199,46 @@
     gl.bindBuffer(gl.ARRAY_BUFFER, gridBuf);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(lines), gl.STATIC_DRAW);
     gridCount = lines.length / 3;
-    for (const c of clouds) upload(c);
+    for (const c of mesh) upload(c);
     return true;
   }
   function upload(c) {
     c.posBuf = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, c.posBuf);
     gl.bufferData(gl.ARRAY_BUFFER, c.pos, gl.STATIC_DRAW);
-    c.colBuf = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, c.colBuf);
-    gl.bufferData(gl.ARRAY_BUFFER, c.col, gl.STATIC_DRAW);
+    c.atBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, c.atBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, c.at, gl.STATIC_DRAW);
+    c.idxBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, c.idxBuf);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, c.idx, gl.STATIC_DRAW);
   }
-
-  // How far a wall is hidden: not at all while the camera is inside the room, fully once it is well outside.
-  const outside = (d) => clamp(d / 0.9, 0, 1);
+  // Puts a picture on the model as its texture. Smaller copies are made for surfaces that are far away, and
+  // surfaces seen at a flat angle (the floor, the benches) are drawn with more care where the device can.
+  // Answers false when the device cannot hold the picture; the model then keeps the texture it has.
+  function dress(picture, entry) {
+    const t = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+    gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE);
+    for (let n = 0; n < 8 && gl.getError() !== gl.NO_ERROR; n++) { /* earlier errors are not about this picture */ }
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, picture);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    const held = gl.getError() === gl.NO_ERROR && !gl.isContextLost();
+    if (picture.close) picture.close();
+    if (!held) { gl.deleteTexture(t); gl.bindTexture(gl.TEXTURE_2D, tex); return false; }
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    const care = gl.getExtension('EXT_texture_filter_anisotropic');
+    if (care) gl.texParameterf(gl.TEXTURE_2D, care.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(8, gl.getParameter(care.MAX_TEXTURE_MAX_ANISOTROPY_EXT)));
+    if (tex) gl.deleteTexture(tex);
+    tex = t;
+    shown = entry;
+    return true;
+  }
 
   function draw(dt) {
     update();
@@ -232,32 +261,32 @@
     gl.drawArrays(gl.LINES, 0, gridCount);
     gl.disableVertexAttribArray(loc.fPos);
 
-    if (loaded) {
+    if (loaded && tex) {
       gl.enable(gl.DEPTH_TEST);
-      gl.useProgram(pointProg);
+      gl.enable(gl.CULL_FACE);          // a surface is drawn only from the side that faced the scanner
+      gl.useProgram(meshProg);
       gl.uniformMatrix4fv(loc.uMat, false, mat);
       gl.uniform3f(loc.uOrigin, S.origin[0], S.origin[1], S.origin[2]);
       gl.uniform1f(loc.uStep, S.step);
-      // With fewer points each disc is larger, so that surfaces stay closed while the model fills in. A part of
-      // the points is spread less evenly than all of them, hence the extra fifth.
-      gl.uniform1f(loc.uSize, SPACING * 1.45 * Math.sqrt(total / loaded) * (loaded < total ? 1.2 : 1) * scale);
-      gl.uniform1f(loc.uMax, maxSize);
-      gl.uniform3f(loc.uWall, S.walls[0], S.walls[1], S.walls[2]);
-      gl.uniform3f(loc.uHide, outside(S.walls[0] - eye[0]), outside(eye[1] - S.walls[1]), outside(S.walls[2] - eye[1]));
       gl.uniform3f(loc.uCut, cutN[0], cutN[1], cutD);
       gl.uniform2f(loc.uHaze, dist - 2.5, 9);
       gl.uniform3f(loc.uBg, BG[0], BG[1], BG[2]);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.uniform1i(loc.uTex, 0);
       gl.enableVertexAttribArray(loc.aPos);
-      gl.enableVertexAttribArray(loc.aCol);
-      for (const c of clouds) {
+      gl.enableVertexAttribArray(loc.aAt);
+      for (const c of mesh) {
         gl.bindBuffer(gl.ARRAY_BUFFER, c.posBuf);
         gl.vertexAttribPointer(loc.aPos, 3, gl.UNSIGNED_SHORT, false, 0, 0);
-        gl.bindBuffer(gl.ARRAY_BUFFER, c.colBuf);
-        gl.vertexAttribPointer(loc.aCol, 3, gl.UNSIGNED_BYTE, true, 0, 0);
-        gl.drawArrays(gl.POINTS, 0, c.n);
+        gl.bindBuffer(gl.ARRAY_BUFFER, c.atBuf);
+        gl.vertexAttribPointer(loc.aAt, 2, gl.UNSIGNED_SHORT, false, 0, 0);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, c.idxBuf);
+        gl.drawElements(gl.TRIANGLES, 3 * c.nt, gl.UNSIGNED_SHORT, 0);
       }
       gl.disableVertexAttribArray(loc.aPos);
-      gl.disableVertexAttribArray(loc.aCol);
+      gl.disableVertexAttribArray(loc.aAt);
+      gl.disable(gl.CULL_FACE);
     }
     return place(dt);
   }
@@ -302,109 +331,174 @@
     return busy;
   }
 
+  // Where a straight line from `o` in the direction `d` (of length one) first meets the model, as the distance
+  // in metres, or Infinity when it meets nothing within `reach`. Only what is drawn counts: the side of a surface
+  // that faced the scanner, and nothing beyond the cut. Nearly all triangles are ruled out quickly: there is a
+  // ball around every GROUP triangles in a row, and a ball around each triangle, and the line must pass through
+  // both before the triangle itself is looked at.
+  function meet(o, d, reach) {
+    const st = S.step, ox = S.origin[0], oy = S.origin[1], oz = S.origin[2];
+    let best = reach, found = false;
+    const miss = (B, b) => {
+      const r = B[b + 3], cx = B[b] - o[0], cy = B[b + 1] - o[1], cz = B[b + 2] - o[2];
+      const along = cx * d[0] + cy * d[1] + cz * d[2];
+      return along < -r || along > best + r || cx * cx + cy * cy + cz * cz - along * along > r * r;
+    };
+    for (const c of mesh) {
+      const B = c.ball, G = c.group, P = c.pos, I = c.idx;
+      for (let g = 0, groups = G.length / 4; g < groups; g++) {
+        if (miss(G, 4 * g)) continue;
+        for (let t = g * GROUP, n = Math.min(c.nt, t + GROUP); t < n; t++) {
+          if (miss(B, 4 * t)) continue;
+          const i0 = 3 * I[3 * t], i1 = 3 * I[3 * t + 1], i2 = 3 * I[3 * t + 2];
+          const ax = P[i0], ay = P[i0 + 1], az = P[i0 + 2];
+          const e1x = (P[i1] - ax) * st, e1y = (P[i1 + 1] - ay) * st, e1z = (P[i1 + 2] - az) * st;
+          const e2x = (P[i2] - ax) * st, e2y = (P[i2 + 1] - ay) * st, e2z = (P[i2 + 2] - az) * st;
+          const px = d[1] * e2z - d[2] * e2y, py = d[2] * e2x - d[0] * e2z, pz = d[0] * e2y - d[1] * e2x;
+          const det = e1x * px + e1y * py + e1z * pz;
+          if (det < 1e-12) continue;    // seen from behind or edge-on: not drawn
+          const tx = o[0] - (ax * st + ox), ty = o[1] - (ay * st + oy), tz = o[2] - (az * st + oz);
+          const u = tx * px + ty * py + tz * pz;
+          if (u < 0 || u > det) continue;
+          const qx = ty * e1z - tz * e1y, qy = tz * e1x - tx * e1z, qz = tx * e1y - ty * e1x;
+          const v = d[0] * qx + d[1] * qy + d[2] * qz;
+          if (v < 0 || u + v > det) continue;
+          const w = (e2x * qx + e2y * qy + e2z * qz) / det;
+          if (w < 0.05 || w >= best) continue;
+          if ((o[0] + d[0] * w) * cutN[0] + (o[1] + d[1] * w) * cutN[1] > cutD) continue;
+          best = w; found = true;
+        }
+      }
+    }
+    return found ? best : Infinity;
+  }
+
   // In a close view, a label is faded out while its instrument is covered by something nearer to the camera.
-  // (With the whole room in view all labels stay, as a key to the room.) This goes through all points, so it
-  // is done a few times a second at most, not for every picture.
+  // (With the whole room in view all labels stay, as a key to the room.) This is done a few times a second,
+  // not for every picture.
   let looked = 0;
   function cover(now) {
     if (now - looked < 280 || !loaded) return;
     looked = now;
-    const list = spots.filter((s) => s.p);
-    if (!list.length) return;
-    if (cam.span > 7) {
-      for (const s of list) if (s.covered) { s.covered = false; s.node.classList.remove('covered'); s.stem.classList.remove('covered'); }
-      return;
-    }
-    const n = list.length, sx = list.map((s) => s.p[0]), sy = list.map((s) => s.p[1]), sw = list.map((s) => s.p[2] - 0.7), hits = new Array(n).fill(0);
-    const far = Math.max(...sw), reach = 5, ox = S.origin[0], oy = S.origin[1], oz = S.origin[2], st = S.step;
-    const hw = [outside(S.walls[0] - eye[0]) > 0.5, outside(eye[1] - S.walls[1]) > 0.5, outside(S.walls[2] - eye[1]) > 0.5];
-    for (const c of clouds) {
-      const P = c.pos;
-      for (let i = 0; i < c.n; i++) {
-        const x = P[3 * i] * st + ox, y = P[3 * i + 1] * st + oy, z = P[3 * i + 2] * st + oz;
-        const w = mat[3] * x + mat[7] * y + mat[11] * z + mat[15];
-        if (w >= far || w <= 0.05) continue;
-        const px = ((mat[0] * x + mat[4] * y + mat[8] * z + mat[12]) / w * 0.5 + 0.5) * W;
-        for (let k = 0; k < n; k++) {
-          if (w >= sw[k] || Math.abs(px - sx[k]) > reach) continue;
-          const py = (0.5 - (mat[1] * x + mat[5] * y + mat[9] * z + mat[13]) / w * 0.5) * H;
-          if (Math.abs(py - sy[k]) > reach) continue;
-          if (x * cutN[0] + y * cutN[1] > cutD || (hw[0] && x < S.walls[0]) || (hw[1] && y > S.walls[1]) || (hw[2] && y < S.walls[2])) continue;
-          hits[k]++;
-        }
+    for (const s of spots) {
+      if (!s.p) continue;
+      let covered = false;
+      if (cam.span <= 7) {
+        const a = s.view.spot, d = [a[0] - eye[0], a[1] - eye[1], a[2] - eye[2]], far = Math.hypot(d[0], d[1], d[2]);
+        covered = far > 0.8 && meet(eye, d.map((v) => v / far), far - 0.7) < Infinity;
       }
-    }
-    list.forEach((s, k) => {
-      const covered = hits[k] >= 3;
       if (covered !== s.covered) { s.covered = covered; s.node.classList.toggle('covered', covered); s.stem.classList.toggle('covered', covered); }
-    });
+    }
   }
 
-  /* ---------- the points ---------- */
-  async function fetchPart(part, done) {
-    const res = await fetch(part.url);
+  /* ---------- the triangles and the textures ---------- */
+  // Fetches a file and tells `got` how many bytes have arrived so far.
+  async function fetchBytes(item, got) {
+    const res = await fetch(item.url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    let bytes;
-    if (res.body && res.body.getReader) {
-      const reader = res.body.getReader(), chunks = [];
-      let got = 0;
-      for (;;) {
-        const { done: end, value } = await reader.read();
-        if (end) break;
-        chunks.push(value);
-        got += value.length;
-        progress(done + Math.min(got, part.bytes));
+    if (!res.body || !res.body.getReader) return new Uint8Array(await res.arrayBuffer());
+    const reader = res.body.getReader(), chunks = [];
+    let n = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      n += value.length;
+      got(Math.min(n, item.bytes));
+    }
+    const bytes = new Uint8Array(n);
+    let at = 0;
+    for (const c of chunks) { bytes.set(c, at); at += c.length; }
+    return bytes;
+  }
+  // Undoes the packing described at `pack` in tools/scan/prepare.py. The mesh comes in parts of at most 65,535
+  // corners. For every corner the file holds the differences to the corner before it: of its place in the room
+  // and of its place in the texture. For every triangle it holds three numbers: 0 for the next new corner,
+  // otherwise how far back from the next new corner the corner lies.
+  function decode(bytes) {
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const count = view.getUint32(0, true), parts = [];
+    let from = 4 + 8 * count;
+    for (let k = 0; k < count; k++) {
+      const nv = view.getUint32(4 + 8 * k, true), nt = view.getUint32(8 + 8 * k, true);
+      if (from + 10 * nv + 6 * nt > bytes.length) throw new Error('short file');
+      const pos = new Uint16Array(3 * nv), at = new Uint16Array(2 * nv), idx = new Uint16Array(3 * nt);
+      const row = (to, width, a) => {
+        const lo = bytes.subarray(from, from + nv), hi = bytes.subarray(from + nv, from + 2 * nv);
+        let v = 0;
+        for (let i = 0; i < nv; i++) { const z = lo[i] | (hi[i] << 8); v = (v + ((z >>> 1) ^ -(z & 1))) & 65535; to[width * i + a] = v; }
+        from += 2 * nv;
+      };
+      for (let a = 0; a < 3; a++) row(pos, 3, a);
+      for (let a = 0; a < 2; a++) row(at, 2, a);
+      const lo = bytes.subarray(from, from + 3 * nt), hi = bytes.subarray(from + 3 * nt, from + 6 * nt);
+      let next = 0;
+      for (let i = 0; i < 3 * nt; i++) { const back = lo[i] | (hi[i] << 8); idx[i] = back ? next - back : next++; }
+      from += 6 * nt;
+      // For `meet`: the ball around each triangle (its middle, and how far its corners are from there), and the
+      // ball around every GROUP triangles in a row. The file lists neighbouring triangles one after the other, so
+      // these groups are small patches of the surface.
+      const ball = new Float32Array(4 * nt), group = new Float32Array(4 * Math.ceil(nt / GROUP)), st = S.step;
+      for (let t = 0; t < nt; t++) {
+        const i0 = 3 * idx[3 * t], i1 = 3 * idx[3 * t + 1], i2 = 3 * idx[3 * t + 2];
+        const x = (pos[i0] + pos[i1] + pos[i2]) / 3, y = (pos[i0 + 1] + pos[i1 + 1] + pos[i2 + 1]) / 3, z = (pos[i0 + 2] + pos[i1 + 2] + pos[i2 + 2]) / 3;
+        let r = 0;
+        for (const i of [i0, i1, i2]) r = Math.max(r, Math.hypot(pos[i] - x, pos[i + 1] - y, pos[i + 2] - z));
+        ball[4 * t] = x * st + S.origin[0]; ball[4 * t + 1] = y * st + S.origin[1]; ball[4 * t + 2] = z * st + S.origin[2]; ball[4 * t + 3] = r * st + 1e-4;
       }
-      bytes = new Uint8Array(got);
-      let at = 0;
-      for (const c of chunks) { bytes.set(c, at); at += c.length; }
-    } else bytes = new Uint8Array(await res.arrayBuffer());
-    // The files are packed with gzip. A server that has already unpacked them on the way is fine too.
+      for (let g = 0, t0 = 0; t0 < nt; g++, t0 += GROUP) {
+        const t1 = Math.min(nt, t0 + GROUP);
+        let x = 0, y = 0, z = 0, r = 0;
+        for (let t = t0; t < t1; t++) { x += ball[4 * t]; y += ball[4 * t + 1]; z += ball[4 * t + 2]; }
+        x /= t1 - t0; y /= t1 - t0; z /= t1 - t0;
+        for (let t = t0; t < t1; t++) r = Math.max(r, Math.hypot(ball[4 * t] - x, ball[4 * t + 1] - y, ball[4 * t + 2] - z) + ball[4 * t + 3]);
+        group[4 * g] = x; group[4 * g + 1] = y; group[4 * g + 2] = z; group[4 * g + 3] = r + 1e-4;
+      }
+      parts.push({ pos, at, idx, ball, group, nv, nt });
+    }
+    return parts;
+  }
+  async function fetchMesh(got) {
+    let bytes = await fetchBytes(S.mesh, got);
+    // The file is packed with gzip. A server that has already unpacked it on the way is fine too.
     if (bytes[0] === 0x1f && bytes[1] === 0x8b) {
       bytes = new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer());
     }
-    return bytes;
+    return decode(bytes);
   }
-  // Undoes the packing described in the README: differences between neighbouring points, for the coordinates
-  // and for the colours.
-  function decode(bytes) {
-    const n = new DataView(bytes.buffer, bytes.byteOffset, 4).getUint32(0, true);
-    if (bytes.length < 4 + 9 * n) throw new Error('short file');
-    const b = bytes.subarray(4), pos = new Uint16Array(3 * n), col = new Uint8Array(3 * n);
-    for (let k = 0; k < 3; k++) {
-      const lo = b.subarray(2 * k * n, (2 * k + 1) * n), hi = b.subarray((2 * k + 1) * n, (2 * k + 2) * n);
-      let v = 0;
-      for (let i = 0; i < n; i++) { const z = lo[i] | (hi[i] << 8); v += (z >>> 1) ^ -(z & 1); pos[3 * i + k] = v; }
+  // A texture as a picture that is ready to be put on the model.
+  async function fetchPicture(entry, got) {
+    const blob = new Blob([await fetchBytes(entry, got || (() => {}))], { type: 'image/webp' });
+    if (window.createImageBitmap) {
+      try { return await createImageBitmap(blob, { premultiplyAlpha: 'none', colorSpaceConversion: 'none' }); } catch (err) { /* the long way below */ }
     }
-    const G = b.subarray(6 * n, 7 * n), R = b.subarray(7 * n, 8 * n), B = b.subarray(8 * n, 9 * n);
-    let g = 0, r = 0, bl = 0;
-    for (let i = 0; i < n; i++) {
-      g = (g + G[i]) & 255; r = (r + R[i]) & 255; bl = (bl + B[i]) & 255;
-      col[3 * i] = (r + g) & 255; col[3 * i + 1] = g; col[3 * i + 2] = (bl + g) & 255;
-    }
-    return { pos, col, n };
+    const img = new Image(), url = URL.createObjectURL(blob);
+    try {
+      await new Promise((ok, fail) => { img.onload = ok; img.onerror = () => fail(new Error('picture')); img.src = url; });
+    } finally { URL.revokeObjectURL(url); }
+    return img;
   }
-  const allBytes = parts.reduce((n, p) => n + p.bytes, 0);
-  function progress(got) { meter.style.setProperty('--done', `${Math.round(100 * clamp(got / allBytes, 0, 1))}%`); }
 
   async function load() {
-    let done = 0;
+    const start = textures[0], best = textures[textures.length - 1];
+    const all = S.mesh.bytes + start.bytes, got = [0, 0];
+    const progress = (k) => (n) => { got[k] = n; meter.style.setProperty('--done', `${Math.round(100 * clamp((got[0] + got[1]) / all, 0, 1))}%`); };
     try {
-      for (const part of parts) {
-        const c = decode(await fetchPart(part, done));
-        done += part.bytes;
-        upload(c);
-        clouds.push(c);
-        loaded += c.n;
-        if (clouds.length === 1) { root.classList.add('live'); begin(); }
-        need();
-      }
-      note.hidden = true;
+      const [parts, picture] = await Promise.all([fetchMesh(progress(0)), fetchPicture(start, progress(1))]);
+      if (!dress(picture, start)) throw new Error('texture');
+      for (const c of parts) { upload(c); mesh.push(c); loaded += c.nt; }
     } catch (err) {
-      // With no part at all, the picture of the scan stays. With some, the model simply stays thinner.
-      if (loaded) note.hidden = true;
-      else { noteText.textContent = 'The 3D model could not be loaded. The picture shows the scan.'; note.classList.add('failed'); }
+      // Without the model, the picture of the scan stays.
+      noteText.textContent = 'The 3D model could not be loaded. The picture shows the scan.';
+      note.classList.add('failed');
+      return;
     }
+    note.hidden = true;
+    root.classList.add('live');
+    begin();
+    need();
+    if (best === start) return;
+    try { dress(await fetchPicture(best), best); need(); } catch (err) { /* the model keeps the smaller texture */ }
   }
 
   /* ---------- moving ---------- */
@@ -600,26 +694,15 @@
     flyTo({ ...cam, x: hit[0], y: hit[1], z: clamp(hit[2], 0.5, 1.6), span, cut: cutFor(span) }, 0.9);
   }
   canvas.addEventListener('dblclick', (e) => closer(e.clientX, e.clientY));
-  // The point of the model under a place in the picture: of the points drawn there, the one nearest to the camera.
+  // The place on the model under a place in the picture, as [x, y, z] in the room, or null.
   function pick(px, py) {
-    const reach = Math.max(5, SPACING * 1.5 * scale / ratio / dist);
-    let best = null, bw = Infinity;
-    const hide = [outside(S.walls[0] - eye[0]) > 0.5, outside(eye[1] - S.walls[1]) > 0.5, outside(S.walls[2] - eye[1]) > 0.5];
-    for (const c of clouds) {
-      const P = c.pos;
-      for (let i = 0; i < c.n; i++) {
-        const x = P[3 * i] * S.step + S.origin[0], y = P[3 * i + 1] * S.step + S.origin[1], z = P[3 * i + 2] * S.step + S.origin[2];
-        const w = mat[3] * x + mat[7] * y + mat[11] * z + mat[15];
-        if (w <= 0.05 || w >= bw || x * cutN[0] + y * cutN[1] > cutD) continue;
-        const sx = ((mat[0] * x + mat[4] * y + mat[8] * z + mat[12]) / w * 0.5 + 0.5) * W;
-        if (Math.abs(sx - px) > reach) continue;
-        const sy = (0.5 - (mat[1] * x + mat[5] * y + mat[9] * z + mat[13]) / w * 0.5) * H;
-        if (Math.abs(sy - py) > reach) continue;
-        if ((hide[0] && x < S.walls[0]) || (hide[1] && y > S.walls[1]) || (hide[2] && y < S.walls[2])) continue;
-        best = [x, y, z]; bw = w;
-      }
-    }
-    return best;
+    if (!loaded || !axes) return null;
+    const sx = (2 * px / W - 1) / lens[0], sy = (1 - 2 * py / H) / lens[1];
+    const d = [0, 1, 2].map((k) => axes[0][k] * sx + axes[1][k] * sy - axes[2][k]);
+    const len = Math.hypot(d[0], d[1], d[2]);
+    for (let k = 0; k < 3; k++) d[k] /= len;
+    const w = meet(eye, d, dist + 12);
+    return w < Infinity ? [eye[0] + d[0] * w, eye[1] + d[1] * w, eye[2] + d[2] * w] : null;
   }
 
   zin.addEventListener('click', () => { hold(); zoom(0.8); });
@@ -640,7 +723,7 @@
     if (!box.width || !box.height) return;
     if (box.width !== W) reserve();
     W = box.width; H = box.height;
-    ratio = Math.min(window.devicePixelRatio || 1, small ? 1.5 : 2) * sharp;
+    ratio = Math.min(window.devicePixelRatio || 1, 2) * sharp;
     const w = Math.round(W * ratio), h = Math.round(H * ratio);
     if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
     for (const s of spots) s.w = 0;       // the labels are measured again
@@ -655,9 +738,18 @@
   }
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { last = 0; need(); } });
   canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); if (raf) cancelAnimationFrame(raf); raf = 0; });
-  canvas.addEventListener('webglcontextrestored', () => { if (setup()) need(); });
+  // A browser may take the model away, from a page in the background or when the device runs short of memory.
+  // When it gives the canvas back, the triangles are sent again from memory and the texture is fetched again
+  // (from the cache of the browser): one size smaller than before, in case the large one was too much.
+  canvas.addEventListener('webglcontextrestored', () => {
+    const again = shown && textures[Math.max(0, textures.indexOf(shown) - 1)];
+    tex = shown = null;
+    if (!setup()) return;
+    need();
+    if (again) fetchPicture(again).then((picture) => { dress(picture, again); need(); }).catch(() => {});
+  });
 
-  // Called when the first part of the points is there: the tour starts, unless reduced motion is asked for
+  // Called when the model is there: the tour starts, unless reduced motion is asked for
   // or the address of the page names a view.
   function begin() {
     if (seen) return;
@@ -685,5 +777,5 @@
     cut: round(cam.cut, 100),
     picked: picked && picked.map((v) => round(v, 100)),
   });
-  root.scan = { cam, pick, where, draw: need, state: () => ({ ...cam, az: cam.az / DEG, el: cam.el / DEG, loaded, current, auto }) };
+  root.scan = { cam, pick, where, draw: need, state: () => ({ ...cam, az: cam.az / DEG, el: cam.el / DEG, loaded, texture: shown ? shown.size : 0, current, auto }) };
 })();

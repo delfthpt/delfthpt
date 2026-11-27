@@ -62,7 +62,14 @@ When an item is settled, remove its `review: '...'` entry from `src/data.mjs`, o
 
 The Virtual tour page shows a 3D scan of the laboratory. Visitors can turn it and zoom in, every instrument carries a numbered label, and a short tour flies from one instrument to the next. Below the model is the photo gallery (the `gallery` list).
 
-The model is drawn by [`public/js/tour.js`](public/js/tour.js) from the files in [`public/scan/`](public/scan), which hold about 450,000 coloured points in 1.5 MB. They arrive in three parts, and the model shows as soon as the first part is there (0.3 MB). A device that asks to save data, or that has little memory, loads two parts. Until the model is there, and in a browser that cannot draw it, the page shows a still picture of the scan (`public/img/lab-scan.jpg`). Without scripts it shows that picture with the texts of all views.
+The model is drawn by [`public/js/tour.js`](public/js/tour.js) from the files in [`public/scan/`](public/scan):
+
+- `room.bin` (1 MB) is the surface of the room, as about 160,000 triangles.
+- `room-1024.webp`, `room-2048.webp` and `room-4096.webp` are its colours: one picture, the texture, in three sizes. The largest has every pixel of the scan's own texture that the room uses.
+
+The model shows as soon as the triangles and the smallest texture are there (1.2 MB together). The largest texture (1.6 MB) follows and takes its place. A device that asks to save data, or that has little memory, stops at the middle size. Until the model is there, and in a browser that cannot draw it, the page shows a still picture of the scan (`public/img/lab-scan.jpg`). Without scripts it shows that picture with the texts of all views.
+
+Only the side of a surface that faced the scanner is drawn. The walls nearest to the camera are seen from behind and so vanish by themselves, and the ceiling is left out of the files, so visitors look into the room as into a model.
 
 The tour plays by itself and stops as soon as a visitor takes hold of the model; the Play button starts it again. For visitors who have asked their device for reduced motion, nothing moves until they press Play. The mouse wheel zooms only after a click on the model, so that the page still scrolls past it.
 
@@ -91,16 +98,15 @@ To find these numbers:
 
 ### A new scan
 
-The scan was made with the Scaniverse app and exported as a point cloud (PLY). [`tools/scan/prepare.py`](tools/scan/prepare.py) turns such a file into the files in `public/scan/`. It needs Python 3 with numpy and scipy, and Pillow for the first step (`pip install numpy scipy pillow`). It is not part of the build of the site. Run it from the folder of the repository:
+The scan was made with the Scaniverse app and exported from it as a mesh in the GLB format: one file with the triangles and the texture (22 MB, not kept in this repository). An export as a point cloud looks blurred from close by, because it has no surfaces. [`tools/scan/prepare.py`](tools/scan/prepare.py) turns the GLB file into the files in `public/scan/`. It needs Python 3 with numpy, scipy and Pillow (`pip install numpy scipy pillow`). It is not part of the build of the site. Run it from the folder of the repository:
 
-1. `python3 tools/scan/prepare.py scan.ply --look top.png` straightens the scan, so that the floor is level and the walls run along the axes, and saves a view from above with a line every metre.
-2. Read from that picture which part of the scan is the room, and put it into `ROOM` at the top of the script. The script leaves out everything outside it, the ceiling, and loose points.
-3. `python3 tools/scan/prepare.py scan.ply` writes `public/scan/room-1.bin`, `room-2.bin` and `room-3.bin`, and prints the lines `step`, `origin`, `box` and `parts` for `scan` in `src/data.mjs`.
-4. Set `walls` in `scan` to places about 12 cm inside the wall on the left, the wall with the door and the wall with the windows. The model hides a wall when the camera stands behind it.
-5. Find the views and the places of the labels again in the new model, as described above.
-6. Renew the still picture: pause the tour in the Overview, take a screenshot of the model alone, and save it as `public/img/lab-scan.jpg`, about 1600 by 1000 pixels.
+1. `python3 tools/scan/prepare.py scan.glb --look top.png` straightens the scan, so that the floor is level and the walls run along the axes, and saves a view from above with a line every metre.
+2. Read from that picture which part of the scan is the room, and put it into `ROOM` at the top of the script. The script cuts the model off at these edges and below the ceiling, and drops loose pieces.
+3. `python3 tools/scan/prepare.py scan.glb` writes `public/scan/room.bin` and the three textures, and prints the lines `step`, `origin`, `box`, `mesh` and `textures` for `scan` in `src/data.mjs`.
+4. Find the views and the places of the labels again in the new model, as described above. This is needed for a new scan, which measures from another spot in the room. A new export of the same scan keeps its frame, so the numbers stay as they are.
+5. Renew the still picture: pause the tour in the Overview, take a screenshot of the model alone, and save it as `public/img/lab-scan.jpg`, about 1600 by 1000 pixels.
 
-Run on the scan of November 2026, the script reproduces the three published files exactly. How the points are packed is described at `pack` in the script, and `decode` in `tour.js` undoes it.
+The script does not make the texture smaller. It packs the patches that the room uses, pixel for pixel, into a picture of 4096 by 4096 pixels. (The scan's own texture has 8192 by 8192 pixels, but the room uses less than a quarter of them. The rest belongs to the ceiling and to what lies outside the room, or is margin between the patches.) If the patches of a larger scan do not fit, the script shrinks them and says by how much. Run on the export of November 2026 with numpy 2.5, scipy 1.18 and Pillow 13, it reproduces the four published files exactly. How the triangles are packed is described at `pack` in the script, and `decode` in `tour.js` undoes it.
 
 ## The interactive illustrations
 

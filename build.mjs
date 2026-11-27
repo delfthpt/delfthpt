@@ -436,8 +436,9 @@ ${head('News', 'News', 'Announcements and coverage of the laboratory.')}
 // texts of all views below it. public/js/tour.js puts the model over the picture and shows one text at a time.
 const SC = D.scan;
 const scanData = {
-  step: SC.step, origin: SC.origin, box: SC.box, walls: SC.walls,
-  parts: SC.parts.map((p) => ({ url: asset(`scan/${p.file}`), points: p.points, bytes: p.bytes })),
+  step: SC.step, origin: SC.origin, box: SC.box,
+  mesh: { url: asset(`scan/${SC.mesh.file}`), bytes: SC.mesh.bytes },
+  textures: SC.textures.map((t) => ({ url: asset(`scan/${t.file}`), size: t.size, bytes: t.bytes })),
   views: SC.views.map((v) => ({ key: v.key, label: v.label || v.name, at: v.at, look: v.look, cut: v.cut || 0, spot: v.spot || null, rest: v.rest, turn: v.turn })),
 };
 const spotNo = (v) => SC.views.filter((x) => x.spot).indexOf(v) + 1;

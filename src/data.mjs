@@ -356,24 +356,25 @@ export const gallery = [
 //   cut   how many metres in front of `at`, measured over the floor towards the camera, the room is still drawn;
 //         what stands nearer to the camera is left away, so that the instrument is in clear view
 //   rest  seconds the tour stays in this view, and `turn` how many degrees per second the model turns meanwhile
-// The README tells how to find these numbers for a new view, and how the files in public/scan are made.
+// The README tells how to find these numbers for a new view, and how the files in public/scan are made:
+// `step`, `origin`, `box`, `mesh` and `textures` describe those files, and tools/scan/prepare.py prints them.
 export const scan = {
   title: 'The laboratory in 3D',
   poster: 'lab-scan.jpg',
   alt: '3D scan of the laboratory seen from above at an angle, with the benches along the walls and the island bench in the middle',
   step: 0.002, origin: [-3.86, -3.63, -0.06], box: [2.66, 3.63, 2.8],
-  walls: [-3.58, 3.38, -3.36],           // the wall on the left (x), the wall with the door (y), the windows (y)
-  parts: [
-    { file: 'room-1.bin', points: 90000, bytes: 329570 },
-    { file: 'room-2.bin', points: 155000, bytes: 528193 },
-    { file: 'room-3.bin', points: 207302, bytes: 678537 },
+  mesh: { file: 'room.bin', bytes: 965818 },
+  textures: [
+    { file: 'room-1024.webp', size: 1024, bytes: 240818 },
+    { file: 'room-2048.webp', size: 2048, bytes: 626504 },
+    { file: 'room-4096.webp', size: 4096, bytes: 1636406 },
   ],
   // How to move the model: one sentence for visitors with a mouse, one for visitors with a touch screen.
   hint: { mouse: 'Drag to turn the model. Click it and scroll to zoom, and double-click a spot to look at it closely.',
     touch: 'Swipe sideways to turn the model, pinch to zoom, and double-tap a spot to look at it closely.' },
   views: [
     { key: 'overview', name: 'Overview', at: [-0.6, 0, 0.9], look: [72, 36, 8.4], rest: 16, turn: -4.5,
-      text: 'A scan of the laboratory, made of about 450,000 coloured points. The scanned part of the room measures about 6.5 by 7 metres, and each square of the grid is one metre. The ceiling is left out and the walls nearest to you are hidden, so that you can look inside.', review: 'places of the five labels to confirm' },
+      text: 'A 3D scan of the laboratory. The scanned part of the room measures about 6.5 by 7 metres, and each square of the grid is one metre. The ceiling is left out and the walls nearest to you are hidden, so that you can look inside.', review: 'places of the five labels to confirm' },
     { key: 'plan', name: 'From above', at: [-0.6, 0, 0.9], look: [-90, 89.4, 9.2], rest: 7, turn: 0,
       text: 'The room seen from straight above. The windows are at the bottom and the door is at the top. The island bench with the press stands in the middle, and the other instruments stand along the walls.' },
     { key: 'press', name: instruments[0].short, at: [-0.45, -1.05, 1.15], look: [-78, 30, 5.0], cut: 1.25, spot: [-0.45, -1.1, 2.15], rest: 8, turn: 1.5,

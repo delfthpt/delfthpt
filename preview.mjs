@@ -10,7 +10,7 @@ const root = resolve('dist');
 const port = Number(process.argv[2]) || 8000;
 const types = {
   '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
-  '.svg': 'image/svg+xml', '.jpg': 'image/jpeg', '.png': 'image/png', '.xml': 'application/xml',
+  '.svg': 'image/svg+xml', '.jpg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.xml': 'application/xml',
   '.txt': 'text/plain; charset=utf-8', '.json': 'application/json', '.bin': 'application/octet-stream',
 };
 
